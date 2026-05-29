@@ -66,7 +66,7 @@ export const VisitsScreen = () => {
           <div className="page-title">Visits</div>
           <div className="page-subtitle">Your upcoming and past visits with the care team.</div>
         </div>
-        <Button icon="plus" onClick={() => nav('/telemedicine')}>Schedule visit</Button>
+        <Button icon="plus" onClick={() => nav('/visits/schedule')}>Schedule visit</Button>
       </div>
 
       <div className="tabs">
@@ -700,6 +700,318 @@ export const NewRequestScreen = () => {
           </div>
         </div>
       </form>
+    </div>
+  );
+};
+
+// ----- SCHEDULE APPOINTMENT -----
+const PROVIDERS = {
+  'Primary Care':  [
+    { name: 'Dr. Emily Carter', initials: 'EC', next: 'May 28, 2026' },
+    { name: 'Dr. Lisa Ng',      initials: 'LN', next: 'May 29, 2026' },
+  ],
+  'Endocrinology': [{ name: 'Dr. Raj Patel',   initials: 'RP', next: 'Jun 1, 2026' }],
+  'Cardiology':    [{ name: 'Dr. Marcus Webb', initials: 'MW', next: 'Jun 3, 2026' }],
+  'Dermatology':   [{ name: 'Dr. Sophia Lin',  initials: 'SL', next: 'Jun 2, 2026' }],
+};
+
+const LOCATIONS = [
+  { name: 'Austin Main Clinic',    addr: '1234 Medical Center Dr, Austin TX' },
+  { name: 'North Austin Campus',   addr: '500 Healthcare Blvd, Austin TX' },
+  { name: 'Cedar Park Satellite',  addr: '200 Cypress Creek Rd, Cedar Park TX' },
+];
+
+const TIME_SLOTS = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM'];
+const DISABLED_SLOTS = new Set(['10:00 AM','2:00 PM','3:30 PM']);
+const SPECIALTIES = ['Primary Care','Endocrinology','Cardiology','Dermatology'];
+const STEP_LABELS = ['Visit type','Specialty','Provider','Location','Date & time','Reason'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+export const ScheduleVisitScreen = () => {
+  const { nav } = useRouter();
+  const { setStore } = useStore();
+  const toast = useToast();
+
+  const [step, setStep] = useState(1);
+  const [visitType, setVisitType] = useState('');
+  const [specialty, setSpecialty] = useState('');
+  const [provider, setProvider] = useState(null);
+  const [location, setLocation] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date(2026, 4, 27));
+  const [selectedTime, setSelectedTime] = useState('');
+  const [reason, setReason] = useState('');
+
+  const today = new Date(2026, 4, 27);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    return d;
+  });
+
+  const canContinue = () => {
+    if (step === 1) return !!visitType;
+    if (step === 2) return !!specialty;
+    if (step === 3) return !!provider;
+    if (step === 4) return !!location;
+    if (step === 5) return !!selectedTime;
+    return true;
+  };
+
+  const goNext = () => {
+    if (!canContinue()) return;
+    if (step === 3 && visitType === 'Virtual') { setStep(5); return; }
+    if (step < 6) setStep(s => s + 1);
+    else handleSubmit();
+  };
+
+  const goBack = () => {
+    if (step === 5 && visitType === 'Virtual') { setStep(3); return; }
+    setStep(s => s - 1);
+  };
+
+  const handleSubmit = () => {
+    const formattedDate = `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}, ${selectedDate.getFullYear()}`;
+    const newVisit = {
+      id: `v${Date.now()}`,
+      when: formattedDate,
+      time: selectedTime,
+      kind: visitType === 'Virtual' ? 'Virtual Visit' : 'In-Person Visit',
+      provider: provider.name,
+      specialty,
+      mode: visitType,
+      status: 'Scheduled',
+      tense: 'upcoming',
+      reason: reason || `${specialty} appointment`,
+      diagnosis: null,
+      plan: null,
+    };
+    setStore(s => ({ ...s, visits: [...s.visits, newVisit] }));
+    toast('Appointment scheduled');
+    nav(`/visits/${newVisit.id}`);
+  };
+
+  const selCard = { border: '2px solid var(--primary)', background: 'var(--primary-light)' };
+  const defCard = { border: '1px solid var(--border)', background: 'var(--surface)' };
+
+  return (
+    <div className="content-narrow" style={{ maxWidth: 720 }}>
+      <button className="btn btn-ghost" onClick={() => nav('/visits')} style={{ marginBottom: 10, padding: '4px 8px' }}>
+        <Icon name="arrowLeft" size={14} /> Back to visits
+      </button>
+      <div className="page-header">
+        <div>
+          <div className="page-title">Schedule Appointment</div>
+          <div className="page-subtitle">Book an in-person or virtual visit with your care team.</div>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
+        {STEP_LABELS.map((label, i) => {
+          const n = i + 1;
+          const isVirtualSkip = visitType === 'Virtual' && n === 4;
+          const filled = n < step;
+          const active = n === step;
+          return (
+            <React.Fragment key={n}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: '50%', display: 'grid', placeItems: 'center',
+                  fontSize: 13, fontWeight: 700,
+                  background: isVirtualSkip ? 'var(--grey-300)' : filled ? 'var(--primary)' : active ? 'transparent' : 'transparent',
+                  border: isVirtualSkip ? '2px solid var(--border)' : filled ? '2px solid var(--primary)' : active ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  color: isVirtualSkip ? 'var(--text-muted)' : filled ? 'white' : active ? 'var(--primary)' : 'var(--text-muted)',
+                  opacity: isVirtualSkip ? 0.4 : 1,
+                }}>
+                  {filled && !isVirtualSkip ? <Icon name="check" size={14} /> : n}
+                </div>
+                <span style={{ fontSize: 11, fontWeight: active ? 600 : 400, color: active ? 'var(--primary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</span>
+              </div>
+              {i < STEP_LABELS.length - 1 && (
+                <div style={{ flex: 1, height: 2, background: filled ? 'var(--primary)' : 'var(--border)', margin: '0 4px', marginBottom: 20 }} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      <div className="card" style={{ padding: '28px 28px' }}>
+
+        {/* Step 1 — Visit type */}
+        {step === 1 && (
+          <div>
+            <h3 style={{ fontSize: 17, marginBottom: 6 }}>What type of visit do you need?</h3>
+            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Choose how you'd like to meet with your provider.</p>
+            <div className="grid grid-2" style={{ gap: 14 }}>
+              {[
+                { type: 'Virtual',   icon: 'video',  title: 'Virtual visit',   desc: 'Meet with your provider by secure video from anywhere.' },
+                { type: 'In-Person', icon: 'mapPin', title: 'In-person visit', desc: 'Visit a clinic near you for a face-to-face appointment.' },
+              ].map(opt => (
+                <button key={opt.type} onClick={() => setVisitType(opt.type)}
+                  style={{ ...(visitType === opt.type ? selCard : defCard), borderRadius: 12, padding: 20, cursor: 'pointer', textAlign: 'left', transition: 'all .15s' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: visitType === opt.type ? 'var(--primary)' : 'var(--primary-light)', color: visitType === opt.type ? 'white' : 'var(--primary-dark)', display: 'grid', placeItems: 'center', marginBottom: 12 }}>
+                    <Icon name={opt.icon} size={20} />
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: visitType === opt.type ? 'var(--primary-dark)' : 'var(--text)' }}>{opt.title}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — Specialty */}
+        {step === 2 && (
+          <div>
+            <h3 style={{ fontSize: 17, marginBottom: 6 }}>What specialty do you need?</h3>
+            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Select the type of care for your visit.</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {SPECIALTIES.map(s => (
+                <button key={s} onClick={() => { setSpecialty(s); setProvider(null); }}
+                  style={{ padding: '10px 20px', borderRadius: 99, fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all .15s',
+                    background: specialty === s ? 'var(--primary)' : 'var(--bg)',
+                    color: specialty === s ? 'white' : 'var(--text)',
+                    border: specialty === s ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3 — Provider */}
+        {step === 3 && (
+          <div>
+            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Choose a provider</h3>
+            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Available providers for {specialty}.</p>
+            <div className="stack" style={{ gap: 10 }}>
+              {(PROVIDERS[specialty] || []).map(p => (
+                <button key={p.name} onClick={() => setProvider(p)}
+                  style={{ ...(provider?.name === p.name ? selCard : defCard), borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all .15s' }}>
+                  <Avatar initials={p.initials} size="lg" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: provider?.name === p.name ? 'var(--primary-dark)' : 'var(--text)' }}>{p.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{specialty}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--primary)', marginTop: 4, fontWeight: 500 }}>Next available: {p.next}</div>
+                  </div>
+                  {provider?.name === p.name && <Icon name="checkCircle" size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 4 — Location (in-person only) */}
+        {step === 4 && (
+          <div>
+            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Choose a location</h3>
+            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Select a clinic for your in-person visit.</p>
+            <div className="stack" style={{ gap: 10 }}>
+              {LOCATIONS.map(loc => (
+                <button key={loc.name} onClick={() => setLocation(loc.name)}
+                  style={{ ...(location === loc.name ? selCard : defCard), borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all .15s' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: location === loc.name ? 'var(--primary)' : 'var(--primary-light)', color: location === loc.name ? 'white' : 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Icon name="mapPin" size={18} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: location === loc.name ? 'var(--primary-dark)' : 'var(--text)' }}>{loc.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{loc.addr}</div>
+                  </div>
+                  {location === loc.name && <Icon name="checkCircle" size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5 — Date & time */}
+        {step === 5 && (
+          <div>
+            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Pick a date and time</h3>
+            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>All times shown in your local timezone (CT).</p>
+
+            <div style={{ overflowX: 'auto', marginBottom: 24 }}>
+              <div style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
+                {days.map((d, i) => {
+                  const active = d.toDateString() === selectedDate.toDateString();
+                  return (
+                    <button key={i} onClick={() => { setSelectedDate(d); setSelectedTime(''); }}
+                      style={{ minWidth: 58, padding: '10px 6px', borderRadius: 10, cursor: 'pointer', textAlign: 'center', flexShrink: 0, transition: 'all .15s',
+                        background: active ? 'var(--primary)' : 'var(--bg)',
+                        border: active ? '2px solid var(--primary)' : '2px solid var(--border)',
+                        color: active ? 'white' : 'var(--text)',
+                      }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, opacity: active ? 0.8 : 1, color: active ? 'white' : 'var(--text-muted)', marginBottom: 2 }}>{DAYS[d.getDay()]}</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1 }}>{d.getDate()}</div>
+                      <div style={{ fontSize: 11, opacity: active ? 0.8 : 1, color: active ? 'white' : 'var(--text-muted)', marginTop: 2 }}>{MONTHS[d.getMonth()]}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: 'var(--text-secondary)' }}>Available times</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {TIME_SLOTS.map(t => {
+                const disabled = DISABLED_SLOTS.has(t);
+                const active = selectedTime === t;
+                return (
+                  <button key={t} onClick={() => !disabled && setSelectedTime(t)} disabled={disabled}
+                    style={{ padding: '10px 8px', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: 13.5, transition: 'all .15s', cursor: disabled ? 'not-allowed' : 'pointer',
+                      background: active ? 'var(--primary)' : disabled ? 'var(--grey-200)' : 'var(--bg)',
+                      border: active ? '2px solid var(--primary)' : '2px solid var(--border)',
+                      color: active ? 'white' : disabled ? 'var(--text-muted)' : 'var(--text)',
+                      opacity: disabled ? 0.5 : 1,
+                    }}>
+                    {t}
+                    {disabled && <div style={{ fontSize: 10, fontWeight: 400, marginTop: 2 }}>Unavailable</div>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Step 6 — Reason + summary */}
+        {step === 6 && (
+          <div>
+            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Reason for visit</h3>
+            <p className="muted" style={{ marginBottom: 16, fontSize: 14 }}>Optional — helps your provider prepare.</p>
+            <textarea className="textarea" style={{ marginBottom: 24 }}
+              placeholder="e.g. Follow-up on labs, new symptom, medication question…"
+              value={reason} onChange={e => setReason(e.target.value)} rows={3} />
+
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Appointment summary</div>
+              <div className="stack" style={{ gap: 10 }}>
+                {[
+                  { label: 'Visit type', value: visitType },
+                  { label: 'Specialty', value: specialty },
+                  { label: 'Provider', value: provider?.name },
+                  ...(visitType === 'In-Person' ? [{ label: 'Location', value: location }] : []),
+                  { label: 'Date', value: `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}, ${selectedDate.getFullYear()}` },
+                  { label: 'Time', value: selectedTime },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>{row.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Nav buttons */}
+        <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 28 }}>
+          {step > 1 && <Button variant="ghost" onClick={goBack}>Back</Button>}
+          <Button onClick={goNext} disabled={!canContinue()} iconRight={step < 6 ? 'arrowRight' : undefined}>
+            {step === 6 ? 'Schedule appointment' : 'Continue'}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

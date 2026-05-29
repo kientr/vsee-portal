@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from './icons.jsx';
 import { RouterProvider, useRouter, StoreProvider, useStore, ToastProvider, useToast, Avatar, Modal, Button } from './core.jsx';
 import { LoginScreen, DashboardScreen } from './screens-1.jsx';
-import { VisitsScreen, VisitDetailScreen, TelemedicineScreen, TelemedCallScreen, RequestsScreen, NewRequestScreen, RequestDetailScreen } from './screens-2.jsx';
+import { VisitsScreen, VisitDetailScreen, ScheduleVisitScreen, TelemedicineScreen, TelemedCallScreen, RequestsScreen, NewRequestScreen, RequestDetailScreen } from './screens-2.jsx';
 import { MessagesScreen, FormsScreen, IntakeFormScreen, MedicalRecordsScreen, ProfileScreen, SettingsScreen } from './screens-3.jsx';
 
 const NAV_ITEMS = [
@@ -91,9 +91,8 @@ const NOTIFICATION_DATA = [
   { id: 'n4', icon: 'calendar', color: '#6B7280', title: 'Appointment reminder', body: 'Virtual Follow-up tomorrow at 10:30 AM.', time: 'May 24', unread: false, href: '/visits' },
 ];
 
-const NotificationPanel = ({ onClose }) => {
+const NotificationPanel = ({ items, setItems, onClose }) => {
   const { nav } = useRouter();
-  const [items, setItems] = useState(NOTIFICATION_DATA);
   const unreadCount = items.filter(n => n.unread).length;
 
   return (
@@ -243,10 +242,8 @@ const Topbar = ({ title }) => {
   const toast = useToast();
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { store } = useStore();
-  const unreadMessages = store.messages.filter(m => m.unread).length;
-  const openRequests = store.requests.filter(r => r.status !== 'Resolved' && r.status !== 'Closed').length;
-  const totalUnread = unreadMessages + openRequests;
+  const [items, setItems] = useState(NOTIFICATION_DATA);
+  const notifUnread = items.filter(n => n.unread).length;
 
   // Cmd+K / Ctrl+K opens the search modal
   useEffect(() => {
@@ -281,11 +278,19 @@ const Topbar = ({ title }) => {
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
       <div className="topbar-actions" data-notif-panel>
         <div style={{ position: 'relative' }} data-notif-panel>
-          <button className="icon-btn" onClick={() => setNotifOpen(o => !o)}>
+          <button className="icon-btn" onClick={() => setNotifOpen(o => !o)} style={{ position: 'relative' }}>
             <Icon name="bell" size={17} />
-            {totalUnread > 0 && <span className="dot"></span>}
+            {notifUnread > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4,
+                minWidth: 17, height: 17, borderRadius: 99,
+                background: 'var(--danger)', color: '#fff',
+                fontSize: 10, fontWeight: 700, lineHeight: '17px',
+                textAlign: 'center', padding: '0 4px',
+              }}>{notifUnread}</span>
+            )}
           </button>
-          {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
+          {notifOpen && <NotificationPanel items={items} setItems={setItems} onClose={() => setNotifOpen(false)} />}
         </div>
         <button className="icon-btn" onClick={() => toast('Help center coming soon')}>
           <Icon name="helpCircle" size={17} />
@@ -303,6 +308,7 @@ const match = (path) => {
   if (path === '/login' || path === '/') return { name: 'login' };
   if (path === '/dashboard') return { name: 'dashboard' };
   if (path === '/visits') return { name: 'visits' };
+  if (path === '/visits/schedule') return { name: 'visit-schedule' };
   const v = path.match(/^\/visits\/([^/]+)$/);
   if (v) return { name: 'visit-detail', id: v[1] };
   if (path === '/telemedicine') return { name: 'telemedicine' };
@@ -326,6 +332,7 @@ const ROUTE_META = {
   dashboard:       { title: 'Dashboard',         chrome: true },
   visits:          { title: 'Visits',             chrome: true },
   'visit-detail':  { title: 'Visit details',      chrome: true },
+  'visit-schedule':{ title: 'Schedule Appointment', chrome: true },
   telemedicine:    { title: 'Telemedicine',        chrome: true },
   'telemed-call':  { title: 'In visit',            chrome: false, fullBleed: true },
   requests:        { title: 'Requests',            chrome: true },
@@ -348,6 +355,7 @@ const Outlet = () => {
     case 'dashboard':      return <DashboardScreen />;
     case 'visits':         return <VisitsScreen />;
     case 'visit-detail':   return <VisitDetailScreen visitId={route.id} />;
+    case 'visit-schedule': return <ScheduleVisitScreen />;
     case 'telemedicine':   return <TelemedicineScreen />;
     case 'telemed-call':   return <TelemedCallScreen />;
     case 'requests':       return <RequestsScreen />;
