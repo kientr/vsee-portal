@@ -9,7 +9,6 @@ import { MessagesScreen, FormsScreen, IntakeFormScreen, MedicalRecordsScreen, Pr
 const NAV_ITEMS = [
   { to: '/dashboard', icon: 'home', label: 'Dashboard' },
   { to: '/visits', icon: 'calendar', label: 'Visits' },
-  { to: '/telemedicine', icon: 'video', label: 'Telemedicine' },
   { to: '/requests', icon: 'inbox', label: 'Requests' },
   { to: '/messages', icon: 'message', label: 'Messages' },
   { to: '/forms', icon: 'fileText', label: 'Forms & Documents' },
@@ -42,7 +41,7 @@ const Sidebar = () => {
       </div>
 
       <div className="nav-section-label">Main</div>
-      {NAV_ITEMS.slice(0, 3).map(n => (
+      {NAV_ITEMS.slice(0, 2).map(n => (
         <button key={n.to} className={`nav-item ${path.startsWith(n.to) ? 'active' : ''}`} onClick={() => nav(n.to)}>
           <Icon name={n.icon} />
           {n.label}
@@ -50,7 +49,7 @@ const Sidebar = () => {
       ))}
 
       <div className="nav-section-label">Care</div>
-      {NAV_ITEMS.slice(3, 7).map(n => (
+      {NAV_ITEMS.slice(2, 6).map(n => (
         <button key={n.to} className={`nav-item ${path.startsWith(n.to) ? 'active' : ''}`} onClick={() => nav(n.to)}>
           <Icon name={n.icon} />
           {n.label}
@@ -59,7 +58,7 @@ const Sidebar = () => {
       ))}
 
       <div className="nav-section-label">Account</div>
-      {NAV_ITEMS.slice(7).map(n => (
+      {NAV_ITEMS.slice(6).map(n => (
         <button key={n.to} className={`nav-item ${path.startsWith(n.to) ? 'active' : ''}`} onClick={() => nav(n.to)}>
           <Icon name={n.icon} />
           {n.label}

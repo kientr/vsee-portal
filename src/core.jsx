@@ -211,6 +211,11 @@ const initialStore = {
       { name: 'MMR', date: '1989 (childhood)' },
     ],
   },
+  // Clinic-configurable settings. Many clinics are reluctant to let patients
+  // initiate conversations, so patient-initiated messaging is a toggle.
+  settings: {
+    allowPatientMessaging: true,
+  },
 };
 
 export const StoreProvider = ({ children }) => {

@@ -7,12 +7,14 @@ import { useRouter, useStore, useToast, Button, Badge, Card, Modal, Avatar, Stat
 export const MessagesScreen = ({ activeId }) => {
   const { nav } = useRouter();
   const { store, setStore } = useStore();
-  const toast = useToast();
   const [reply, setReply] = useState('');
-  const [composeOpen, setComposeOpen] = useState(false);
   const [typing, setTyping] = useState(false);
   const threadRef = useRef(null);
   const active = activeId ? store.messages.find(m => m.id === activeId) : store.messages[0];
+  // Patient-initiated messaging is clinic-configurable. When enabled, starting
+  // a new message routes to the same standard request form as "New request".
+  const canInitiate = store.settings.allowPatientMessaging;
+  const startNew = () => nav('/requests/new');
 
   useEffect(() => {
     if (active?.unread) {
@@ -53,7 +55,7 @@ export const MessagesScreen = ({ activeId }) => {
           <div className="page-title">Messages</div>
           <div className="page-subtitle">Secure conversations with your care team.</div>
         </div>
-        <Button icon="plus" onClick={() => setComposeOpen(true)}>New message</Button>
+        {canInitiate && <Button icon="plus" onClick={startNew}>New message</Button>}
       </div>
 
       <div className="msg-shell">
@@ -67,9 +69,11 @@ export const MessagesScreen = ({ activeId }) => {
                 </span>
               )}
             </div>
-            <button className="icon-btn" style={{ width: 28, height: 28, border: 'none' }} onClick={() => setComposeOpen(true)} title="New message">
-              <Icon name="edit" size={14} />
-            </button>
+            {canInitiate && (
+              <button className="icon-btn" style={{ width: 28, height: 28, border: 'none' }} onClick={startNew} title="New message">
+                <Icon name="edit" size={14} />
+              </button>
+            )}
           </div>
           {store.messages.map(m => (
             <div key={m.id} className={`msg-list-item ${active?.id === m.id ? 'active' : ''}`} onClick={() => nav(`/messages/${m.id}`)}>
@@ -127,32 +131,6 @@ export const MessagesScreen = ({ activeId }) => {
           </div>
         )}
       </div>
-
-      <Modal open={composeOpen} onClose={() => setComposeOpen(false)} title="New message"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setComposeOpen(false)}>Cancel</Button>
-            <Button icon="send" onClick={() => { setComposeOpen(false); toast('Message sent'); }}>Send</Button>
-          </>
-        }
-      >
-        <div className="form-row">
-          <label>To</label>
-          <select className="select">
-            <option>Dr. Emily Carter — Primary Care</option>
-            <option>Lisa Ng, NP — Care Team</option>
-            <option>Patient Services</option>
-          </select>
-        </div>
-        <div className="form-row">
-          <label>Subject</label>
-          <input className="input" placeholder="What is this about?" />
-        </div>
-        <div className="form-row">
-          <label>Message</label>
-          <textarea className="textarea" placeholder="Write your message…" />
-        </div>
-      </Modal>
     </div>
   );
 };
@@ -1023,7 +1001,12 @@ const NotificationsTab = () => {
 
 export const SettingsScreen = () => {
   const toast = useToast();
+  const { store, setStore } = useStore();
   const [tab, setTab] = useState('account');
+  const setMessaging = (v) => {
+    setStore(s => ({ ...s, settings: { ...s.settings, allowPatientMessaging: v } }));
+    toast(v ? 'Patient messaging enabled' : 'Patient messaging disabled');
+  };
   return (
     <div className="content-narrow" style={{ maxWidth: 880 }}>
       <div className="page-header">
@@ -1063,6 +1046,18 @@ export const SettingsScreen = () => {
         <Card title="Privacy & consent">
           <FieldRow label="Telehealth consent" value={<><Badge>Signed</Badge> <span className="muted" style={{ marginLeft: 8 }}>Mar 03, 2026</span></>} editing={false} />
           <FieldRow label="HIPAA Notice of Privacy Practices" value={<><Badge>Acknowledged</Badge> <span className="muted" style={{ marginLeft: 8 }}>Jan 15, 2023</span></>} editing={false} />
+          <FieldRow
+            label="Allow patients to send messages"
+            value={
+              <div className="row-between" style={{ gap: 16 }}>
+                <span className="muted" style={{ fontSize: 12.5, maxWidth: 520 }}>
+                  When off, patients can read and reply to messages from their care team but cannot start new conversations. New-message actions are routed to the standard request form.
+                </span>
+                <Switch checked={store.settings.allowPatientMessaging} onChange={setMessaging} />
+              </div>
+            }
+            editing={false}
+          />
           <FieldRow label="Share data with research partners" value={<Switch checked={false} onChange={() => toast('Preference saved')} />} editing={false} />
           <FieldRow label="Allow family member access" value={<Switch checked={false} onChange={() => toast('Preference saved')} />} editing={false} last />
           <hr className="divider" />

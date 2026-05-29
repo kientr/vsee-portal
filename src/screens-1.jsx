@@ -292,11 +292,10 @@ export const DashboardScreen = () => {
         </div>
       </div>
 
-      <div className="grid grid-4" style={{ marginBottom: 20 }}>
+      <div className="grid grid-3" style={{ marginBottom: 20 }}>
         {[
-          { icon: 'calendar', label: 'Upcoming visits', value: store.visits.filter(v => v.tense === 'upcoming').length, color: '#0D875C', href: '/visits' },
+          { icon: 'calendar', label: 'Upcoming appointments', value: store.visits.filter(v => v.tense === 'upcoming').length, color: '#0D875C', href: '/visits' },
           { icon: 'inbox', label: 'Open requests', value: store.requests.filter(r => r.status !== 'Resolved' && r.status !== 'Closed').length, color: '#196CD2', href: '/requests' },
-          { icon: 'message', label: 'Unread messages', value: store.messages.filter(m => m.unread).length, color: '#92400E', href: '/messages' },
           { icon: 'fileText', label: 'Pending forms', value: store.forms.filter(f => f.status !== 'Completed').length, color: '#D97706', href: '/forms' },
         ].map(s => (
           <button key={s.href} onClick={() => nav(s.href)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', transition: 'border-color .15s, box-shadow .15s', boxShadow: 'var(--shadow)' }}
