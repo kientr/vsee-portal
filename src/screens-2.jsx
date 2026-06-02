@@ -1,12 +1,14 @@
-// Visits + Telemedicine + Requests screens
-import React, { useState, useEffect, useRef } from 'react';
+// Visits + Telemedicine + e-consult screens
+import React, { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
-import { useRouter, useStore, useToast, Button, Badge, Card, Modal, Avatar } from './core.jsx';
+import { useRouter, useStore, useToast, usePicker, Button, Card, Badge, Avatar, Modal } from './core.jsx';
 import { UpcomingVisitCard } from './screens-1.jsx';
 
 // ----- VISITS -----
-const VisitCard = ({ v, onView, onJoin }) => (
-  <div className="card" style={v.status === 'Ready to join' ? { borderLeftWidth: 4, borderLeftColor: 'var(--primary)', paddingLeft: 16 } : {}}>
+const VisitCard = ({ v, onView, onJoin }) => {
+  const isAsync = v.mode === 'E-consult';
+  return (
+  <div className="card">
     <div className="row-between" style={{ marginBottom: 14 }}>
       <div className="row gap-sm">
         <Badge>{v.mode}</Badge>
@@ -30,9 +32,19 @@ const VisitCard = ({ v, onView, onJoin }) => (
         <h3 className="card-title">{v.kind}</h3>
         <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{v.provider} · {v.specialty}</div>
         <div className="row gap-sm muted" style={{ fontSize: 13, marginTop: 6 }}>
-          <span><Icon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{v.time}</span>
-          <span>·</span>
-          <span><Icon name={v.mode === 'Virtual' ? 'video' : 'mapPin'} size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{v.mode === 'Virtual' ? 'Telehealth visit' : 'Main Clinic, Austin'}</span>
+          {isAsync ? (
+            <>
+              <span><Icon name="message" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Async e-consult</span>
+              <span>·</span>
+              <span>Submitted {v.when}</span>
+            </>
+          ) : (
+            <>
+              <span><Icon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{v.time}</span>
+              <span>·</span>
+              <span><Icon name={v.mode === 'Virtual' ? 'video' : 'mapPin'} size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{v.mode === 'Virtual' ? 'Telehealth visit' : 'Main Clinic, Austin'}</span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -40,22 +52,32 @@ const VisitCard = ({ v, onView, onJoin }) => (
       <>
         <hr className="divider" />
         <div className="row gap-sm">
-          {v.tense === 'upcoming' && v.mode === 'Virtual' && v.status === 'Ready to join' && (
-            <Button icon="video" onClick={onJoin}>Join visit</Button>
+          {isAsync ? (
+            <Button variant={v.status === 'Provider replied' ? 'primary' : 'secondary'} icon="message" onClick={onView}>
+              {v.status === 'Resolved' ? 'View conversation' : 'Open e-consult'}
+            </Button>
+          ) : (
+            <>
+              {v.tense === 'upcoming' && v.mode === 'Virtual' && v.status === 'Ready to join' && (
+                <Button icon="video" onClick={onJoin}>Join visit</Button>
+              )}
+              <Button variant="secondary" onClick={onView}>View details</Button>
+              {v.tense === 'upcoming' && <Button variant="ghost">Reschedule</Button>}
+              {v.tense === 'upcoming' && <Button variant="ghost">Cancel</Button>}
+              {v.tense === 'past' && <Button variant="ghost" icon="download">Download summary</Button>}
+            </>
           )}
-          <Button variant="secondary" onClick={onView}>View details</Button>
-          {v.tense === 'upcoming' && <Button variant="ghost">Reschedule</Button>}
-          {v.tense === 'upcoming' && <Button variant="ghost">Cancel</Button>}
-          {v.tense === 'past' && <Button variant="ghost" icon="download">Download summary</Button>}
         </div>
       </>
     )}
   </div>
-);
+  );
+};
 
-export const VisitsScreen = () => {
+const VisitsScreen = () => {
   const { nav } = useRouter();
   const { store } = useStore();
+  const { openPicker } = usePicker();
   const [tab, setTab] = useState('upcoming');
   const visits = store.visits.filter(v => v.tense === tab);
 
@@ -63,15 +85,15 @@ export const VisitsScreen = () => {
     <div className="content-narrow">
       <div className="page-header">
         <div>
-          <div className="page-title">Visits</div>
-          <div className="page-subtitle">Your upcoming and past visits with the care team.</div>
+          <div className="page-title">Visits &amp; e-consults</div>
+          <div className="page-subtitle">Every encounter in one place — video, phone, in-person, and async e-consults.</div>
         </div>
-        <Button icon="plus" onClick={() => nav('/visits/schedule')}>Schedule visit</Button>
+        <Button icon="plus" onClick={openPicker}>See a provider</Button>
       </div>
 
       <div className="tabs">
         <button className={`tab ${tab === 'upcoming' ? 'active' : ''}`} onClick={() => setTab('upcoming')}>
-          Upcoming ({store.visits.filter(v => v.tense === 'upcoming').length})
+          Open ({store.visits.filter(v => v.tense === 'upcoming').length})
         </button>
         <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
           Past ({store.visits.filter(v => v.tense === 'past').length})
@@ -86,8 +108,8 @@ export const VisitsScreen = () => {
           <div className="card">
             <div className="empty-state">
               <div className="empty-state-icon"><Icon name="calendar" size={22} /></div>
-              <div style={{ fontWeight: 600, color: 'var(--text)' }}>No {tab} visits</div>
-              <div>Your {tab} visits will appear here.</div>
+              <div style={{ fontWeight: 600, color: 'var(--text)' }}>No {tab === 'upcoming' ? 'open' : tab} encounters</div>
+              <div>Your {tab === 'upcoming' ? 'open' : tab} visits and e-consults will appear here.</div>
             </div>
           </div>
         ) : visits.map(v => (
@@ -101,11 +123,120 @@ export const VisitsScreen = () => {
   );
 };
 
-export const VisitDetailScreen = ({ visitId }) => {
+const EConsultDetail = ({ v }) => {
+  const { nav } = useRouter();
+  const { store, setStore } = useStore();
+  const toast = useToast();
+  const [reply, setReply] = useState('');
+  const resolved = v.status === 'Resolved';
+
+  const sendReply = () => {
+    if (!reply.trim()) return;
+    setStore(s => ({
+      ...s,
+      visits: s.visits.map(x => x.id === v.id ? {
+        ...x, status: 'In review', updated: 'Just now',
+        messages: [...x.messages, { from: 'patient', name: s.user.name, date: 'Just now', body: reply }],
+      } : x),
+    }));
+    setReply('');
+    toast('Reply sent to your care team');
+  };
+
+  return (
+    <div className="content-narrow" style={{ maxWidth: 980 }}>
+      <button className="btn btn-ghost" onClick={() => nav('/visits')} style={{ marginBottom: 10, padding: '4px 8px' }}>
+        <Icon name="arrowLeft" size={14} /> Back to visits &amp; e-consults
+      </button>
+      <div className="page-header" style={{ alignItems: 'flex-start' }}>
+        <div>
+          <div className="row gap-sm" style={{ marginBottom: 8 }}>
+            <Badge>E-consult</Badge>
+            <Badge>{v.status}</Badge>
+          </div>
+          <div className="page-title">{v.kind}</div>
+          <div className="page-subtitle">Submitted {v.when} · Care team: {v.assigned}</div>
+        </div>
+      </div>
+
+      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+        <div className="stack" style={{ gap: 20 }}>
+          <Card title="Conversation">
+            <div className="stack" style={{ gap: 16 }}>
+              {v.messages.map((m, i) => (
+                <div key={i} className={`msg-bubble ${m.from === 'patient' ? 'me' : ''}`}>
+                  <Avatar size="sm" initials={m.from === 'patient' ? 'SJ' : m.name.split(' ').map(x => x[0]).slice(0, 2).join('')}
+                    color={m.from === 'patient' ? null : 'linear-gradient(135deg, #196CD2, #1E40AF)'} />
+                  <div>
+                    <div className="msg-bubble-body">{m.body}</div>
+                    <div className="msg-bubble-meta">{m.name} · {m.date}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <hr className="divider" />
+            {resolved ? (
+              <div className="row" style={{ gap: 10, alignItems: 'center', background: 'var(--green-light)', color: '#166534', padding: '12px 14px', borderRadius: 10 }}>
+                <Icon name="checkCircle" size={18} />
+                <div style={{ fontSize: 13.5 }}>This e-consult is resolved. Need more help? <a href="#" onClick={(e) => { e.preventDefault(); nav('/visits/econsult'); }} style={{ fontWeight: 700 }}>Start a new e-consult</a>.</div>
+              </div>
+            ) : (
+              <div className="stack" style={{ gap: 10 }}>
+                <textarea className="textarea" placeholder="Write a reply…" value={reply} onChange={(e) => setReply(e.target.value)} />
+                <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <Button variant="ghost" icon="paperclip">Attach file</Button>
+                  <Button icon="send" onClick={sendReply} disabled={!reply.trim()}>Send reply</Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <div className="stack" style={{ gap: 20 }}>
+          <Card title="Status">
+            <div className="timeline">
+              {v.timeline.map((t, i) => (
+                <div key={i} className="timeline-item">
+                  <div className={`timeline-dot ${t.state}`}>
+                    {t.state === 'done' && <Icon name="check" size={14} />}
+                    {t.state === 'active' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }}></span>}
+                  </div>
+                  <div className="timeline-content">
+                    <div className="timeline-title">{t.label}</div>
+                    <div className="timeline-meta">{t.date}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card title="Encounter">
+            <div className="stack" style={{ gap: 10 }}>
+              <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <Icon name="fileText" size={15} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>Opened automatically</div>
+                  <div className="muted" style={{ fontSize: 12.5 }}>Your e-consult opened encounter <strong>{v.encounter}</strong> in the EMR. Everything you send here is filed to it.</div>
+                </div>
+              </div>
+              <hr className="divider" />
+              <div><div className="card-eyebrow">About</div><div>{v.reason}</div></div>
+              <div><div className="card-eyebrow">Care team</div><div>{v.assigned}</div></div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VisitDetailScreen = ({ visitId }) => {
   const { nav } = useRouter();
   const { store } = useStore();
   const v = store.visits.find(x => x.id === visitId);
   if (!v) return <div>Visit not found</div>;
+  if (v.async) return <EConsultDetail v={v} />;
   const isPast = v.tense === 'past';
 
   return (
@@ -124,7 +255,7 @@ export const VisitDetailScreen = ({ visitId }) => {
           <div className="page-subtitle">{v.when} at {v.time} · {v.provider}, {v.specialty}</div>
         </div>
         {!isPast && v.status === 'Ready to join' && (
-          <Button size="lg" icon="video" onClick={() => nav('/telemedicine/call')} className="btn-join-pulse">Join visit now</Button>
+          <Button size="lg" icon="video" onClick={() => nav('/telemedicine/call')}>Join visit</Button>
         )}
         {isPast && <Button variant="secondary" icon="download">Download summary</Button>}
       </div>
@@ -156,24 +287,16 @@ export const VisitDetailScreen = ({ visitId }) => {
 
               <Card title="Before your visit">
                 <div className="stack">
-                  {(() => {
-                    const intakeForm = store.forms.find(f => f.id === 'f1');
-                    const done = intakeForm?.status === 'Completed';
-                    return (
-                      <div className="row" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: done ? 'var(--green-light)' : 'var(--amber-light)', color: done ? '#166534' : '#92400E', display: 'grid', placeItems: 'center' }}>
-                          <Icon name={done ? 'check' : 'fileText'} size={16} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>Complete intake form</div>
-                          <div className="muted" style={{ fontSize: 12 }}>
-                            {done ? 'Completed · Submitted to care team' : `Required · ${intakeForm?.progress > 0 ? `${intakeForm.progress}% done` : 'About 5 minutes'}`}
-                          </div>
-                        </div>
-                        {done ? <Badge>Done</Badge> : <Button variant="secondary" size="sm" onClick={() => nav('/forms/intake')}>{intakeForm?.progress > 0 ? 'Continue' : 'Start'}</Button>}
-                      </div>
-                    );
-                  })()}
+                  <div className="row" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--amber-light)', color: '#92400E', display: 'grid', placeItems: 'center' }}>
+                      <Icon name="fileText" size={16} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>Complete intake form</div>
+                      <div className="muted" style={{ fontSize: 12 }}>Required · About 5 minutes</div>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={() => nav('/forms/intake')}>Start</Button>
+                  </div>
                   <div className="row" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center' }}>
                       <Icon name="upload" size={16} />
@@ -295,11 +418,9 @@ export const VisitDetailScreen = ({ visitId }) => {
 };
 
 // ----- TELEMEDICINE -----
-export const TelemedicineScreen = () => {
+const TelemedicineScreen = () => {
   const { nav } = useRouter();
   const { store } = useStore();
-  const toast = useToast();
-  const [checks, setChecks] = useState({ cam: false, mic: false, net: false });
   const next = store.visits.find(v => v.tense === 'upcoming' && v.mode === 'Virtual');
 
   return (
@@ -321,8 +442,8 @@ export const TelemedicineScreen = () => {
       <div className="grid grid-3" style={{ marginBottom: 24 }}>
         {[
           { icon: 'zap', color: '#0D875C', title: 'Walk-in visit', desc: 'Talk to an on-call provider now. Avg wait under 5 min.', cta: 'Start now', primary: true, action: () => nav('/telemedicine/call') },
-          { icon: 'calendar', color: '#196CD2', title: 'Schedule appointment', desc: 'Book a future time with your provider.', cta: 'Pick a time', action: () => {} },
-          { icon: 'message', color: '#92400E', title: 'Async e-consult', desc: 'Describe your concern. A provider replies within 24h.', cta: 'Start message', action: () => nav('/requests/new') },
+          { icon: 'calendar', color: '#196CD2', title: 'Schedule appointment', desc: 'Book a future time with your provider.', cta: 'Pick a time', action: () => nav('/visits/schedule') },
+          { icon: 'message', color: '#92400E', title: 'Async e-consult', desc: 'Describe your concern. A provider replies within 24h.', cta: 'Start message', action: () => nav('/visits/econsult') },
         ].map((opt, i) => (
           <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: `${opt.color}1A`, color: opt.color, display: 'grid', placeItems: 'center', marginBottom: 14 }}>
@@ -335,40 +456,31 @@ export const TelemedicineScreen = () => {
         ))}
       </div>
 
-      <Card title="Device check — confirm before joining">
-        <div className="grid grid-3" style={{ gap: 12 }}>
+      <Card title="Before you start a visit">
+        <div className="grid grid-3" style={{ gap: 16 }}>
           {[
-            { key: 'cam', icon: 'cam', title: 'Camera', desc: 'Click to test your camera' },
-            { key: 'mic', icon: 'mic', title: 'Microphone', desc: 'Click to test your microphone' },
-            { key: 'net', icon: 'globe', title: 'Connection', desc: 'Click to check your network' },
-          ].map((t) => {
-            const done = checks[t.key];
-            return (
-              <button key={t.key} onClick={() => { setChecks(c => ({ ...c, [t.key]: true })); toast(`${t.title} check passed`); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: done ? 'var(--green-light)' : 'var(--bg)', border: `1px solid ${done ? '#BBF7D0' : 'var(--border)'}`, borderRadius: 10, cursor: 'pointer', textAlign: 'left', transition: 'all .15s' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: done ? '#166534' : 'var(--primary-light)', color: done ? 'white' : 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                  <Icon name={done ? 'check' : t.icon} size={16} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: done ? '#166534' : 'var(--text)' }}>{t.title}</div>
-                  <div style={{ fontSize: 12, color: done ? '#166534' : 'var(--text-muted)' }}>{done ? 'Ready' : t.desc}</div>
-                </div>
-              </button>
-            );
-          })}
+            { icon: 'cam', title: 'Test your camera', desc: 'Make sure your camera works' },
+            { icon: 'mic', title: 'Test your microphone', desc: 'Check audio input and output' },
+            { icon: 'globe', title: 'Stable connection', desc: 'Wi-Fi works best for video' },
+          ].map((t, i) => (
+            <div key={i} className="row">
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--green-light)', color: '#166534', display: 'grid', placeItems: 'center' }}>
+                <Icon name="check" size={16} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{t.title}</div>
+                <div className="muted" style={{ fontSize: 12.5 }}>{t.desc}</div>
+              </div>
+            </div>
+          ))}
         </div>
-        {Object.values(checks).every(Boolean) && (
-          <div style={{ marginTop: 14, padding: '10px 14px', background: 'var(--green-light)', borderRadius: 8, color: '#166534', fontWeight: 600, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon name="checkCircle" size={16} /> All checks passed — you're ready to join
-          </div>
-        )}
       </Card>
     </div>
   );
 };
 
 // ----- TELEMEDICINE CALL MOCK -----
-export const TelemedCallScreen = () => {
+const TelemedCallScreen = () => {
   const { nav } = useRouter();
   const toast = useToast();
   const [muted, setMuted] = useState(false);
@@ -382,16 +494,11 @@ export const TelemedCallScreen = () => {
   ]);
   const [input, setInput] = useState('');
   const [showLeave, setShowLeave] = useState(false);
-  const chatBodyRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setDuration(d => d + 1), 1000);
     return () => clearInterval(t);
   }, []);
-
-  useEffect(() => {
-    if (chatBodyRef.current) chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-  }, [chat.length]);
 
   const fmt = (s) => {
     const m = String(Math.floor(s / 60)).padStart(2, '0');
@@ -404,6 +511,7 @@ export const TelemedCallScreen = () => {
     if (!input.trim()) return;
     setChat(c => [...c, { who: 'me', name: 'You', body: input }]);
     setInput('');
+    // mock provider reply
     setTimeout(() => {
       setChat(c => [...c, { who: 'them', name: 'Dr. Carter', body: "Got it. I'll add that to your chart." }]);
     }, 1400);
@@ -416,15 +524,14 @@ export const TelemedCallScreen = () => {
           <div className="call-provider-avatar">EC</div>
         </div>
         <div className="call-meta">
-          <span style={{ background: '#22C55E', width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }}></span>
-          <span style={{ fontWeight: 600 }}>{fmt(duration)}</span>
-          <span style={{ opacity: 0.4 }}>|</span>
-          <Icon name="shield" size={13} style={{ opacity: 0.7 }} />
-          <span style={{ opacity: 0.8, fontSize: 13 }}>End-to-end encrypted</span>
+          <span style={{ background: '#22C55E', width: 8, height: 8, borderRadius: '50%' }}></span>
+          <span style={{ fontWeight: 500 }}>Connected · {fmt(duration)}</span>
+          <span style={{ opacity: 0.6, marginLeft: 6 }}>|</span>
+          <span style={{ opacity: 0.85 }}>Encrypted</span>
         </div>
         <div className="call-provider-label">
-          <span className="live live-pulse" style={{ position: 'relative', zIndex: 2 }}></span>
-          <span>Dr. Emily Carter · Primary Care</span>
+          <span className="live"></span>
+          <span>Dr. Emily Carter</span>
         </div>
         <div className="call-self">
           {cam ? (
@@ -446,7 +553,7 @@ export const TelemedCallScreen = () => {
                 <Icon name="x" size={16} />
               </button>
             </div>
-            <div className="call-chat-messages" ref={chatBodyRef}>
+            <div className="call-chat-messages">
               {chat.map((m, i) => (
                 <div key={i} className={`chat-msg ${m.who}`}>
                   <div className="who">{m.name}</div>
@@ -503,177 +610,361 @@ export const TelemedCallScreen = () => {
   );
 };
 
-// ----- REQUESTS -----
-const th = { textAlign: 'left', padding: '12px 18px', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' };
-const td = { padding: '14px 18px', fontSize: 14, verticalAlign: 'middle' };
+// Schedule appointment (in-person & virtual)
+// ─────────────────────────────────────────────
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export const RequestsScreen = () => {
+// Demo: assume current month is May 2026
+const CURRENT_MONTH = 4; // May
+const CURRENT_YEAR = 2026;
+const TODAY = 27;
+
+const buildCalendar = (year, month) => {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+};
+
+// Mock: which days in May/June 2026 have availability
+const AVAILABLE_DAYS = {
+  '2026-4': [27, 28, 29, 30],
+  '2026-5': [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20],
+};
+
+const SLOTS_BY_TIME = ['08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM'];
+
+const ScheduleAppointmentScreen = () => {
   const { nav } = useRouter();
-  const { store } = useStore();
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const { store, setStore } = useStore();
+  const toast = useToast();
 
-  const filtered = store.requests.filter(r => {
-    if (filter === 'open' && (r.status === 'Resolved' || r.status === 'Closed')) return false;
-    if (filter === 'closed' && r.status !== 'Resolved' && r.status !== 'Closed') return false;
-    if (search.trim()) return r.title.toLowerCase().includes(search.toLowerCase()) || r.type.toLowerCase().includes(search.toLowerCase());
+  const [step, setStep] = useState(0);
+  const [mode, setMode] = useState('Virtual'); // 'Virtual' | 'Phone' | 'In-Person'
+  const [month, setMonth] = useState(CURRENT_MONTH);
+  const [year, setYear] = useState(CURRENT_YEAR);
+  const [day, setDay] = useState(28);
+  const [time, setTime] = useState('10:30 AM');
+  const [reason, setReason] = useState('');
+
+  // Provider & location are pre-bound by the patient's registration / the link they
+  // arrived through — there is no Event/Site/Program selection in the portal.
+  const provider = store.providers.find(p => p.id === 'p1');
+  const location = store.locations.find(l => l.id === 'loc1');
+
+  const MODE_LABEL = { 'Virtual': 'Video visit', 'Phone': 'Phone visit', 'In-Person': 'In-person visit' };
+
+  const submit = () => {
+    const id = 'v' + Math.random().toString(36).slice(2, 6);
+    const enc = 'ENC-' + Math.floor(4000 + Math.random() * 900);
+    const whenStr = `${MONTH_NAMES[month].slice(0, 3)} ${day}, ${year}`;
+    const newVisit = {
+      id, when: whenStr, time,
+      kind: mode === 'Virtual' ? 'Virtual Visit' : mode === 'Phone' ? 'Phone Visit' : 'In-Person Visit',
+      provider: provider.name, specialty: provider.specialty, mode,
+      status: 'Scheduled', tense: 'upcoming', encounter: enc,
+      reason: reason || 'General consultation',
+      diagnosis: null, plan: null,
+    };
+    const newNotif = {
+      id: 'n' + Math.random().toString(36).slice(2, 6), kind: 'appointment',
+      title: 'Visit scheduled', body: `${MODE_LABEL[mode]} with ${provider.name} on ${whenStr} at ${time}`,
+      when: 'Just now', read: false, to: `/visits/${id}`, icon: 'check', color: '#0D875C',
+    };
+    setStore(s => ({ ...s, visits: [newVisit, ...s.visits], notifications: [newNotif, ...s.notifications] }));
+    toast('Visit scheduled — an encounter has been opened');
+    nav(`/visits/${id}`);
+  };
+
+  const canProceed = (() => {
+    if (step === 0) return !!mode && !!reason.trim();
+    if (step === 1) return !!day && !!time;
     return true;
-  });
+  })();
 
   return (
-    <div className="content-narrow">
-      <div className="page-header">
+    <div className="content-narrow" style={{ maxWidth: 820 }}>
+      <button className="btn btn-text" onClick={() => nav('/visits')} style={{ marginBottom: 10, padding: '4px 8px' }}>
+        <Icon name="arrowLeft" size={14} /> Back to visits &amp; e-consults
+      </button>
+
+      <div className="page-header" style={{ marginBottom: 18 }}>
         <div>
-          <div className="page-title">Requests</div>
-          <div className="page-subtitle">Ask questions, request refills, or send a message that doesn't need a visit.</div>
-        </div>
-        <Button icon="plus" onClick={() => nav('/requests/new')}>New request</Button>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <div className="tabs" style={{ marginBottom: 0, borderBottom: 'none', flex: 1 }}>
-          <button className={`tab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All ({store.requests.length})</button>
-          <button className={`tab ${filter === 'open' ? 'active' : ''}`} onClick={() => setFilter('open')}>Open ({store.requests.filter(r => r.status !== 'Resolved' && r.status !== 'Closed').length})</button>
-          <button className={`tab ${filter === 'closed' ? 'active' : ''}`} onClick={() => setFilter('closed')}>Closed</button>
-        </div>
-        <div style={{ position: 'relative', width: 220 }}>
-          <Icon name="search" size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-          <input className="input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter requests…"
-            style={{ paddingLeft: 32, height: 36, fontSize: 13 }} />
+          <div className="page-title">Schedule a visit</div>
+          <div className="page-subtitle">Pick how you'd like to be seen and a time that works. Your care team is already set.</div>
         </div>
       </div>
-      <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 0 }}></div>
 
-      <div className="card card-flush">
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-              <th style={th}>Request</th>
-              <th style={th}>Type</th>
-              <th style={th}>Status</th>
-              <th style={th}>Assigned</th>
-              <th style={th}>Updated</th>
-              <th style={{ ...th, width: 40 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(r => (
-              <tr key={r.id} onClick={() => nav(`/requests/${r.id}`)} style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <td style={td}><div style={{ fontWeight: 600 }}>{r.title}</div><div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Created {r.created}</div></td>
-                <td style={td}><span className="muted">{r.type}</span></td>
-                <td style={td}><Badge>{r.status}</Badge></td>
-                <td style={td}><span className="muted">{r.assigned}</span></td>
-                <td style={td}><span className="muted">{r.updated}</span></td>
-                <td style={td}><Icon name="chevronRight" size={16} style={{ color: 'var(--text-muted)' }} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-state-icon"><Icon name="inbox" size={22} /></div>
-            <div style={{ fontWeight: 600, color: 'var(--text)' }}>No requests yet</div>
-            <div>Start a new request to ask your care team a question.</div>
+      <div className="steps">
+        {['How & why', 'Date & time', 'Confirm'].map((label, i) => (
+          <React.Fragment key={label}>
+            <div className={`step ${i === step ? 'active' : i < step ? 'done' : ''}`}>
+              <div className="step-num">{i < step ? <Icon name="check" size={14} /> : i + 1}</div>
+              <span style={{ display: i === step ? 'inline' : 'none' }}>{label}</span>
+            </div>
+            {i < 2 && <div className={`step-line ${i < step ? 'done' : ''}`}></div>}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div className="card">
+        {/* Step 0: how & why */}
+        {step === 0 && (
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 14 }}>How would you like to be seen?</h3>
+            <div className="choice-cards" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+              <button className={`choice-card ${mode === 'Virtual' ? 'selected' : ''}`} onClick={() => setMode('Virtual')}>
+                <div className="choice-card-icon"><Icon name="video" size={18} /></div>
+                <div className="choice-card-title">Video</div>
+                <div className="choice-card-sub">Secure video from anywhere</div>
+              </button>
+              <button className={`choice-card ${mode === 'Phone' ? 'selected' : ''}`} onClick={() => setMode('Phone')}>
+                <div className="choice-card-icon"><Icon name="phone" size={18} /></div>
+                <div className="choice-card-title">Phone</div>
+                <div className="choice-card-sub">We'll call your number</div>
+              </button>
+              <button className={`choice-card ${mode === 'In-Person' ? 'selected' : ''}`} onClick={() => setMode('In-Person')}>
+                <div className="choice-card-icon"><Icon name="building" size={18} /></div>
+                <div className="choice-card-title">In person</div>
+                <div className="choice-card-sub">At your registered clinic</div>
+              </button>
+            </div>
+
+            <hr className="divider" />
+            <div className="form-row">
+              <label>What's the reason for your visit?</label>
+              <textarea className="textarea" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Follow-up on diabetes management and recent labs"></textarea>
+              <div className="field-help">This opens the encounter and helps your provider prepare.</div>
+            </div>
+
+            <div className="provider-card" style={{ cursor: 'default' }}>
+              <Avatar initials={provider.initials} color={provider.color} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600 }}>{provider.name} <span className="badge badge-gray" style={{ fontSize: 10.5, marginLeft: 4 }}>Your care team</span></div>
+                <div className="muted" style={{ fontSize: 12.5 }}>
+                  {provider.specialty}{mode === 'In-Person' ? ` · ${location.name}` : ''}
+                </div>
+              </div>
+            </div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+              <Icon name="info" size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+              Set from your registration. Need a different provider or location? <a href="#" onClick={(e) => { e.preventDefault(); nav('/messages'); }} style={{ fontWeight: 600 }}>Message Patient Services</a>.
+            </div>
           </div>
         )}
+
+        {/* Step 1: date + time */}
+        {step === 1 && (
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 4 }}>Pick a date &amp; time</h3>
+            <p className="muted" style={{ fontSize: 13.5, marginBottom: 18 }}>{provider.name} · {MODE_LABEL[mode]}</p>
+
+            <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+              <div>
+                <div className="row-between" style={{ marginBottom: 12 }}>
+                  <button className="icon-btn" style={{ width: 32, height: 32 }} onClick={() => {
+                    if (month === 0) { setMonth(11); setYear(year - 1); }
+                    else setMonth(month - 1);
+                  }}>
+                    <Icon name="chevronLeft" size={14} />
+                  </button>
+                  <div style={{ fontWeight: 700 }}>{MONTH_NAMES[month]} {year}</div>
+                  <button className="icon-btn" style={{ width: 32, height: 32 }} onClick={() => {
+                    if (month === 11) { setMonth(0); setYear(year + 1); }
+                    else setMonth(month + 1);
+                  }}>
+                    <Icon name="chevronRight" size={14} />
+                  </button>
+                </div>
+                <div className="calendar-grid">
+                  {DAY_LABELS.map(d => <div key={d} className="calendar-day-label">{d}</div>)}
+                  {buildCalendar(year, month).map((d, i) => {
+                    if (d === null) return <div key={i} className="calendar-cell muted"></div>;
+                    const isToday = year === CURRENT_YEAR && month === CURRENT_MONTH && d === TODAY;
+                    const isPast = year < CURRENT_YEAR || (year === CURRENT_YEAR && (month < CURRENT_MONTH || (month === CURRENT_MONTH && d < TODAY)));
+                    const hasSlots = (AVAILABLE_DAYS[`${year}-${month}`] || []).includes(d);
+                    const isSelected = day === d;
+                    return (
+                      <button key={i}
+                        className={`calendar-cell ${isToday ? 'today' : ''} ${hasSlots ? 'has-slots' : ''} ${isSelected ? 'selected' : ''}`}
+                        disabled={isPast || !hasSlots}
+                        onClick={() => setDay(d)}>
+                        {d}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="row gap-sm" style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--primary)' }}></span>
+                    Available
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 12 }}>{day ? `${MONTH_NAMES[month]} ${day}` : 'Pick a date'}</div>
+                {day ? (
+                  <div className="time-slot-grid">
+                    {SLOTS_BY_TIME.map(t => {
+                      const taken = (t.charCodeAt(0) + day) % 4 === 0;
+                      return (
+                        <button key={t} className={`time-slot ${time === t ? 'selected' : ''}`}
+                          onClick={() => setTime(t)} disabled={taken} title={taken ? 'Unavailable' : ''}>
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="muted" style={{ fontSize: 13, padding: 14, background: 'var(--grey-200)', borderRadius: 10 }}>
+                    Choose a date to see available times.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: confirm */}
+        {step === 2 && (
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 14 }}>Confirm your visit</h3>
+
+            <div className="card" style={{ background: 'var(--grey-200)', border: 'none', padding: 16, marginBottom: 16 }}>
+              <div className="row" style={{ marginBottom: 12 }}>
+                <Avatar initials={provider.initials} color={provider.color} size="lg" />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{provider.name}</div>
+                  <div className="muted" style={{ fontSize: 13.5 }}>{provider.specialty}</div>
+                </div>
+              </div>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <div>
+                  <div className="card-eyebrow">Date &amp; time</div>
+                  <div style={{ fontWeight: 500 }}>{MONTH_NAMES[month]} {day}, {year} at {time}</div>
+                </div>
+                <div>
+                  <div className="card-eyebrow">Visit type</div>
+                  <div style={{ fontWeight: 500 }}>{MODE_LABEL[mode]}</div>
+                </div>
+                <div>
+                  <div className="card-eyebrow">{mode === 'In-Person' ? 'Location' : 'Format'}</div>
+                  <div style={{ fontWeight: 500 }}>{mode === 'In-Person' ? location.name : mode === 'Phone' ? 'We will call you' : 'Secure video visit'}</div>
+                  {mode === 'In-Person' && <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{location.address}</div>}
+                </div>
+                <div>
+                  <div className="card-eyebrow">Reason</div>
+                  <div style={{ fontWeight: 500 }}>{reason || '—'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ background: 'var(--primary-100)', border: 'none', padding: 14, fontSize: 13, color: 'var(--text-secondary)' }}>
+              <div className="row gap-sm" style={{ alignItems: 'flex-start' }}>
+                <Icon name="info" size={16} style={{ color: 'var(--primary)', marginTop: 2 }} />
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>What happens next?</div>
+                  Confirming opens an encounter for this visit automatically. We'll send a confirmation by email and SMS{mode === 'Virtual' ? ' with a link to join.' : mode === 'Phone' ? ' and call you at your number.' : ', plus a reminder 24 hours before.'} You can reschedule or cancel anytime.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <hr className="divider" />
+        <div className="row-between">
+          <Button variant="text" onClick={() => step > 0 ? setStep(step - 1) : nav('/visits')} icon={step > 0 ? 'arrowLeft' : null}>
+            {step > 0 ? 'Back' : 'Cancel'}
+          </Button>
+          <Button
+            onClick={() => step < 2 ? setStep(step + 1) : submit()}
+            iconRight={step < 2 ? 'arrowRight' : null}
+            icon={step === 2 ? 'check' : null}
+            disabled={!canProceed}>
+            {step < 2 ? 'Continue' : 'Confirm visit'}
+          </Button>
+        </div>
       </div>
     </div>
   );
 };
 
-export const NewRequestScreen = () => {
+// ─────────────────────────────────────────────
+// E-consult compose (async clinical encounter). Replaces the old generic "request".
+// Submitting opens an encounter and routes to the unified visit/e-consult detail.
+// ─────────────────────────────────────────────
+const ECONSULT_TYPES = ['Medical question or symptom', 'Prescription refill', 'Test or result follow-up'];
+
+const EConsultScreen = () => {
   const { nav } = useRouter();
   const toast = useToast();
   const { store, setStore } = useStore();
-  const AUTO_SUBJECTS = {
-    'Medical Question': '',
-    'Prescription Question': 'Question about my prescription',
-    'Appointment Request': 'Request to schedule an appointment',
-    'Document Request': 'Request for medical records / documents',
-    'Insurance Question': 'Question about my insurance coverage',
-    'Billing Question': 'Question about a billing statement',
-  };
-  const [type, setType] = useState('Medical Question');
+  const [type, setType] = useState(ECONSULT_TYPES[0]);
   const [subject, setSubject] = useState('');
   const [desc, setDesc] = useState('');
-  const handleTypeChange = (newType) => {
-    setType(newType);
-    if (!subject || Object.values(AUTO_SUBJECTS).includes(subject)) {
-      setSubject(AUTO_SUBJECTS[newType] || '');
-    }
-  };
-  const [related, setRelated] = useState('');
   const [files, setFiles] = useState([]);
 
   const submit = (e) => {
     e.preventDefault();
-    const id = 'r' + Math.random().toString(36).slice(2, 6);
-    const newReq = {
-      id, title: subject || `${type} request`, type, status: 'Submitted',
-      created: 'Just now', updated: 'Just now', assigned: 'Care Team',
-      description: desc,
+    if (!subject.trim() || !desc.trim()) return;
+    const id = 'e' + Math.random().toString(36).slice(2, 6);
+    const enc = 'ENC-' + Math.floor(4000 + Math.random() * 900);
+    const newEconsult = {
+      id, when: 'Just now', time: 'Just now',
+      kind: `E-consult — ${subject}`, provider: 'Care Team', specialty: 'Primary Care',
+      mode: 'E-consult', async: true, status: 'Submitted', tense: 'upcoming', encounter: enc,
+      reason: type, description: desc, assigned: 'Care Team', diagnosis: null, plan: null,
       messages: [{ from: 'patient', name: store.user.name, date: 'Just now', body: desc }],
       timeline: [
-        { label: 'Submitted', date: 'Just now', state: 'active' },
-        { label: 'In Review', date: '—', state: 'pending' },
+        { label: 'Submitted', date: 'Just now', state: 'done' },
+        { label: 'Encounter opened', date: 'Just now', state: 'done' },
+        { label: 'In review', date: '—', state: 'active' },
         { label: 'Resolved', date: '—', state: 'pending' },
       ],
     };
-    setStore(s => ({ ...s, requests: [newReq, ...s.requests] }));
-    toast('Your request has been submitted.');
-    nav(`/requests/${id}`);
+    setStore(s => ({ ...s, visits: [newEconsult, ...s.visits] }));
+    toast('E-consult sent — an encounter has been opened');
+    nav(`/visits/${id}`);
   };
 
   return (
     <div className="content-narrow" style={{ maxWidth: 720 }}>
-      <button className="btn btn-ghost" onClick={() => nav('/requests')} style={{ marginBottom: 10, padding: '4px 8px' }}>
-        <Icon name="arrowLeft" size={14} /> Back to requests
+      <button className="btn btn-ghost" onClick={() => nav('/visits')} style={{ marginBottom: 10, padding: '4px 8px' }}>
+        <Icon name="arrowLeft" size={14} /> Back to visits &amp; e-consults
       </button>
       <div className="page-header">
         <div>
-          <div className="page-title">New request</div>
-          <div className="page-subtitle">Send a non-urgent question or request to your care team.</div>
+          <div className="page-title">Send an e-consult</div>
+          <div className="page-subtitle">Describe your concern in writing. A provider on your care team reviews and replies — usually within 24 hours.</div>
         </div>
       </div>
 
       <form onSubmit={submit}>
         <div className="card stack" style={{ gap: 0 }}>
           <div className="form-row">
-            <label>Request type</label>
-            <select className="select" value={type} onChange={(e) => handleTypeChange(e.target.value)}>
-              <option>Medical Question</option>
-              <option>Prescription Question</option>
-              <option>Appointment Request</option>
-              <option>Document Request</option>
-              <option>Insurance Question</option>
-              <option>Billing Question</option>
-              <option>Other</option>
+            <label>What's this about?</label>
+            <select className="select" value={type} onChange={(e) => setType(e.target.value)}>
+              {ECONSULT_TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
+            <div className="field-help">For insurance, billing, or scheduling, <a href="#" onClick={(e) => { e.preventDefault(); nav('/messages'); }} style={{ fontWeight: 600 }}>message Patient Services</a> instead.</div>
           </div>
           <div className="form-row">
             <label>Subject</label>
-            <input className="input" placeholder="Briefly describe what you need" value={subject} onChange={(e) => setSubject(e.target.value)} required />
+            <input className="input" placeholder="A short summary, e.g. 'persistent headache for 3 days'" value={subject} onChange={(e) => setSubject(e.target.value)} required />
           </div>
           <div className="form-row">
-            <label>Description</label>
-            <textarea className="textarea" placeholder="Tell us what's going on. Include symptoms, timing, and anything else helpful." value={desc} onChange={(e) => setDesc(e.target.value)} required />
-            <div className="field-help">If this is an emergency, call 911.</div>
+            <label>What's going on?</label>
+            <textarea className="textarea" placeholder="Describe your symptoms, when they started, what you've tried, and anything else helpful." value={desc} onChange={(e) => setDesc(e.target.value)} required />
           </div>
           <div className="form-row">
-            <label>Related visit (optional)</label>
-            <select className="select" value={related} onChange={(e) => setRelated(e.target.value)}>
-              <option value="">None</option>
-              {store.visits.filter(v => v.tense !== 'cancelled').map(v => (
-                <option key={v.id} value={v.id}>{v.kind} — {v.when} ({v.provider})</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <label>Attachments</label>
-            <div className="upload-zone" onClick={() => setFiles(f => [...f, { name: 'screenshot.png', size: '320 KB' }])}>
+            <label>Attachments (optional)</label>
+            <div className="upload-zone" onClick={() => setFiles(f => [...f, { name: 'photo.jpg', size: '420 KB' }])}>
               <Icon name="upload" />
               <div style={{ fontWeight: 600, color: 'var(--text)' }}>Click to attach files</div>
               <div style={{ fontSize: 12 }}>PDF, JPG, PNG up to 25 MB each</div>
@@ -694,9 +985,19 @@ export const NewRequestScreen = () => {
             )}
           </div>
 
-          <div className="row gap-sm" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
-            <Button type="button" variant="ghost" onClick={() => nav('/requests')}>Cancel</Button>
-            <Button type="submit" icon="send">Submit request</Button>
+          <div className="row gap-sm" style={{ alignItems: 'flex-start', background: 'var(--warning-light)', color: '#92400E', padding: '10px 12px', borderRadius: 10, fontSize: 12.5 }}>
+            <Icon name="alert" size={15} style={{ marginTop: 1, flexShrink: 0 }} />
+            <span>E-consults are for non-urgent concerns. If this is a medical emergency, call 911.</span>
+          </div>
+
+          <div className="row" style={{ gap: 10, alignItems: 'center', marginTop: 12 }}>
+            <Avatar initials="EC" size="sm" />
+            <span className="muted" style={{ fontSize: 12.5, flex: 1 }}>Goes to your care team — Dr. Emily Carter & Lisa Ng, NP</span>
+          </div>
+
+          <div className="row gap-sm" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+            <Button type="button" variant="ghost" onClick={() => nav('/visits')}>Cancel</Button>
+            <Button type="submit" icon="send" disabled={!subject.trim() || !desc.trim()}>Send e-consult</Button>
           </div>
         </div>
       </form>
@@ -704,421 +1005,8 @@ export const NewRequestScreen = () => {
   );
 };
 
-// ----- SCHEDULE APPOINTMENT -----
-const PROVIDERS = {
-  'Primary Care':  [
-    { name: 'Dr. Emily Carter', initials: 'EC', next: 'May 28, 2026' },
-    { name: 'Dr. Lisa Ng',      initials: 'LN', next: 'May 29, 2026' },
-  ],
-  'Endocrinology': [{ name: 'Dr. Raj Patel',   initials: 'RP', next: 'Jun 1, 2026' }],
-  'Cardiology':    [{ name: 'Dr. Marcus Webb', initials: 'MW', next: 'Jun 3, 2026' }],
-  'Dermatology':   [{ name: 'Dr. Sophia Lin',  initials: 'SL', next: 'Jun 2, 2026' }],
-};
-
-const LOCATIONS = [
-  { name: 'Austin Main Clinic',    addr: '1234 Medical Center Dr, Austin TX' },
-  { name: 'North Austin Campus',   addr: '500 Healthcare Blvd, Austin TX' },
-  { name: 'Cedar Park Satellite',  addr: '200 Cypress Creek Rd, Cedar Park TX' },
-];
-
-const TIME_SLOTS = ['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM'];
-const DISABLED_SLOTS = new Set(['10:00 AM','2:00 PM','3:30 PM']);
-const SPECIALTIES = ['Primary Care','Endocrinology','Cardiology','Dermatology'];
-const STEP_LABELS = ['Visit type','Specialty','Provider','Location','Date & time','Reason'];
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-export const ScheduleVisitScreen = () => {
-  const { nav } = useRouter();
-  const { setStore } = useStore();
-  const toast = useToast();
-
-  const [step, setStep] = useState(1);
-  const [visitType, setVisitType] = useState('');
-  const [specialty, setSpecialty] = useState('');
-  const [provider, setProvider] = useState(null);
-  const [location, setLocation] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 4, 27));
-  const [selectedTime, setSelectedTime] = useState('');
-  const [reason, setReason] = useState('');
-
-  const today = new Date(2026, 4, 27);
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return d;
-  });
-
-  const canContinue = () => {
-    if (step === 1) return !!visitType;
-    if (step === 2) return !!specialty;
-    if (step === 3) return !!provider;
-    if (step === 4) return !!location;
-    if (step === 5) return !!selectedTime;
-    return true;
-  };
-
-  const goNext = () => {
-    if (!canContinue()) return;
-    if (step === 3 && visitType === 'Virtual') { setStep(5); return; }
-    if (step < 6) setStep(s => s + 1);
-    else handleSubmit();
-  };
-
-  const goBack = () => {
-    if (step === 5 && visitType === 'Virtual') { setStep(3); return; }
-    setStep(s => s - 1);
-  };
-
-  const handleSubmit = () => {
-    const formattedDate = `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}, ${selectedDate.getFullYear()}`;
-    const newVisit = {
-      id: `v${Date.now()}`,
-      when: formattedDate,
-      time: selectedTime,
-      kind: visitType === 'Virtual' ? 'Virtual Visit' : 'In-Person Visit',
-      provider: provider.name,
-      specialty,
-      mode: visitType,
-      status: 'Scheduled',
-      tense: 'upcoming',
-      reason: reason || `${specialty} appointment`,
-      diagnosis: null,
-      plan: null,
-    };
-    setStore(s => ({ ...s, visits: [...s.visits, newVisit] }));
-    toast('Appointment scheduled');
-    nav(`/visits/${newVisit.id}`);
-  };
-
-  const selCard = { border: '2px solid var(--primary)', background: 'var(--primary-light)' };
-  const defCard = { border: '1px solid var(--border)', background: 'var(--surface)' };
-
-  return (
-    <div className="content-narrow" style={{ maxWidth: 720 }}>
-      <button className="btn btn-ghost" onClick={() => nav('/visits')} style={{ marginBottom: 10, padding: '4px 8px' }}>
-        <Icon name="arrowLeft" size={14} /> Back to visits
-      </button>
-      <div className="page-header">
-        <div>
-          <div className="page-title">Schedule Appointment</div>
-          <div className="page-subtitle">Book an in-person or virtual visit with your care team.</div>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
-        {STEP_LABELS.map((label, i) => {
-          const n = i + 1;
-          const isVirtualSkip = visitType === 'Virtual' && n === 4;
-          const filled = n < step;
-          const active = n === step;
-          return (
-            <React.Fragment key={n}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{
-                  width: 30, height: 30, borderRadius: '50%', display: 'grid', placeItems: 'center',
-                  fontSize: 13, fontWeight: 700,
-                  background: isVirtualSkip ? 'var(--grey-300)' : filled ? 'var(--primary)' : active ? 'transparent' : 'transparent',
-                  border: isVirtualSkip ? '2px solid var(--border)' : filled ? '2px solid var(--primary)' : active ? '2px solid var(--primary)' : '2px solid var(--border)',
-                  color: isVirtualSkip ? 'var(--text-muted)' : filled ? 'white' : active ? 'var(--primary)' : 'var(--text-muted)',
-                  opacity: isVirtualSkip ? 0.4 : 1,
-                }}>
-                  {filled && !isVirtualSkip ? <Icon name="check" size={14} /> : n}
-                </div>
-                <span style={{ fontSize: 11, fontWeight: active ? 600 : 400, color: active ? 'var(--primary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</span>
-              </div>
-              {i < STEP_LABELS.length - 1 && (
-                <div style={{ flex: 1, height: 2, background: filled ? 'var(--primary)' : 'var(--border)', margin: '0 4px', marginBottom: 20 }} />
-              )}
-            </React.Fragment>
-          );
-        })}
-      </div>
-
-      <div className="card" style={{ padding: '28px 28px' }}>
-
-        {/* Step 1 — Visit type */}
-        {step === 1 && (
-          <div>
-            <h3 style={{ fontSize: 17, marginBottom: 6 }}>What type of visit do you need?</h3>
-            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Choose how you'd like to meet with your provider.</p>
-            <div className="grid grid-2" style={{ gap: 14 }}>
-              {[
-                { type: 'Virtual',   icon: 'video',  title: 'Virtual visit',   desc: 'Meet with your provider by secure video from anywhere.' },
-                { type: 'In-Person', icon: 'mapPin', title: 'In-person visit', desc: 'Visit a clinic near you for a face-to-face appointment.' },
-              ].map(opt => (
-                <button key={opt.type} onClick={() => setVisitType(opt.type)}
-                  style={{ ...(visitType === opt.type ? selCard : defCard), borderRadius: 12, padding: 20, cursor: 'pointer', textAlign: 'left', transition: 'all .15s' }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: visitType === opt.type ? 'var(--primary)' : 'var(--primary-light)', color: visitType === opt.type ? 'white' : 'var(--primary-dark)', display: 'grid', placeItems: 'center', marginBottom: 12 }}>
-                    <Icon name={opt.icon} size={20} />
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: visitType === opt.type ? 'var(--primary-dark)' : 'var(--text)' }}>{opt.title}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{opt.desc}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 2 — Specialty */}
-        {step === 2 && (
-          <div>
-            <h3 style={{ fontSize: 17, marginBottom: 6 }}>What specialty do you need?</h3>
-            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Select the type of care for your visit.</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-              {SPECIALTIES.map(s => (
-                <button key={s} onClick={() => { setSpecialty(s); setProvider(null); }}
-                  style={{ padding: '10px 20px', borderRadius: 99, fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all .15s',
-                    background: specialty === s ? 'var(--primary)' : 'var(--bg)',
-                    color: specialty === s ? 'white' : 'var(--text)',
-                    border: specialty === s ? '2px solid var(--primary)' : '2px solid var(--border)',
-                  }}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 3 — Provider */}
-        {step === 3 && (
-          <div>
-            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Choose a provider</h3>
-            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Available providers for {specialty}.</p>
-            <div className="stack" style={{ gap: 10 }}>
-              {(PROVIDERS[specialty] || []).map(p => (
-                <button key={p.name} onClick={() => setProvider(p)}
-                  style={{ ...(provider?.name === p.name ? selCard : defCard), borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all .15s' }}>
-                  <Avatar initials={p.initials} size="lg" />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: provider?.name === p.name ? 'var(--primary-dark)' : 'var(--text)' }}>{p.name}</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{specialty}</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--primary)', marginTop: 4, fontWeight: 500 }}>Next available: {p.next}</div>
-                  </div>
-                  {provider?.name === p.name && <Icon name="checkCircle" size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 4 — Location (in-person only) */}
-        {step === 4 && (
-          <div>
-            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Choose a location</h3>
-            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>Select a clinic for your in-person visit.</p>
-            <div className="stack" style={{ gap: 10 }}>
-              {LOCATIONS.map(loc => (
-                <button key={loc.name} onClick={() => setLocation(loc.name)}
-                  style={{ ...(location === loc.name ? selCard : defCard), borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all .15s' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: location === loc.name ? 'var(--primary)' : 'var(--primary-light)', color: location === loc.name ? 'white' : 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                    <Icon name="mapPin" size={18} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: location === loc.name ? 'var(--primary-dark)' : 'var(--text)' }}>{loc.name}</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{loc.addr}</div>
-                  </div>
-                  {location === loc.name && <Icon name="checkCircle" size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 5 — Date & time */}
-        {step === 5 && (
-          <div>
-            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Pick a date and time</h3>
-            <p className="muted" style={{ marginBottom: 20, fontSize: 14 }}>All times shown in your local timezone (CT).</p>
-
-            <div style={{ overflowX: 'auto', marginBottom: 24 }}>
-              <div style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
-                {days.map((d, i) => {
-                  const active = d.toDateString() === selectedDate.toDateString();
-                  return (
-                    <button key={i} onClick={() => { setSelectedDate(d); setSelectedTime(''); }}
-                      style={{ minWidth: 58, padding: '10px 6px', borderRadius: 10, cursor: 'pointer', textAlign: 'center', flexShrink: 0, transition: 'all .15s',
-                        background: active ? 'var(--primary)' : 'var(--bg)',
-                        border: active ? '2px solid var(--primary)' : '2px solid var(--border)',
-                        color: active ? 'white' : 'var(--text)',
-                      }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, opacity: active ? 0.8 : 1, color: active ? 'white' : 'var(--text-muted)', marginBottom: 2 }}>{DAYS[d.getDay()]}</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1 }}>{d.getDate()}</div>
-                      <div style={{ fontSize: 11, opacity: active ? 0.8 : 1, color: active ? 'white' : 'var(--text-muted)', marginTop: 2 }}>{MONTHS[d.getMonth()]}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: 'var(--text-secondary)' }}>Available times</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {TIME_SLOTS.map(t => {
-                const disabled = DISABLED_SLOTS.has(t);
-                const active = selectedTime === t;
-                return (
-                  <button key={t} onClick={() => !disabled && setSelectedTime(t)} disabled={disabled}
-                    style={{ padding: '10px 8px', borderRadius: 8, textAlign: 'center', fontWeight: 600, fontSize: 13.5, transition: 'all .15s', cursor: disabled ? 'not-allowed' : 'pointer',
-                      background: active ? 'var(--primary)' : disabled ? 'var(--grey-200)' : 'var(--bg)',
-                      border: active ? '2px solid var(--primary)' : '2px solid var(--border)',
-                      color: active ? 'white' : disabled ? 'var(--text-muted)' : 'var(--text)',
-                      opacity: disabled ? 0.5 : 1,
-                    }}>
-                    {t}
-                    {disabled && <div style={{ fontSize: 10, fontWeight: 400, marginTop: 2 }}>Unavailable</div>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Step 6 — Reason + summary */}
-        {step === 6 && (
-          <div>
-            <h3 style={{ fontSize: 17, marginBottom: 6 }}>Reason for visit</h3>
-            <p className="muted" style={{ marginBottom: 16, fontSize: 14 }}>Optional — helps your provider prepare.</p>
-            <textarea className="textarea" style={{ marginBottom: 24 }}
-              placeholder="e.g. Follow-up on labs, new symptom, medication question…"
-              value={reason} onChange={e => setReason(e.target.value)} rows={3} />
-
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px' }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Appointment summary</div>
-              <div className="stack" style={{ gap: 10 }}>
-                {[
-                  { label: 'Visit type', value: visitType },
-                  { label: 'Specialty', value: specialty },
-                  { label: 'Provider', value: provider?.name },
-                  ...(visitType === 'In-Person' ? [{ label: 'Location', value: location }] : []),
-                  { label: 'Date', value: `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}, ${selectedDate.getFullYear()}` },
-                  { label: 'Time', value: selectedTime },
-                ].map(row => (
-                  <div key={row.label} style={{ display: 'flex', gap: 8 }}>
-                    <span style={{ fontSize: 13, color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>{row.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{row.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Nav buttons */}
-        <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 28 }}>
-          {step > 1 && <Button variant="ghost" onClick={goBack}>Back</Button>}
-          <Button onClick={goNext} disabled={!canContinue()} iconRight={step < 6 ? 'arrowRight' : undefined}>
-            {step === 6 ? 'Schedule appointment' : 'Continue'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export const RequestDetailScreen = ({ requestId }) => {
-  const { nav } = useRouter();
-  const { store, setStore } = useStore();
-  const toast = useToast();
-  const r = store.requests.find(x => x.id === requestId);
-  const [reply, setReply] = useState('');
-
-  if (!r) return <div className="content-narrow">Request not found</div>;
-
-  const sendReply = () => {
-    if (!reply.trim()) return;
-    setStore(s => ({
-      ...s,
-      requests: s.requests.map(x => x.id === r.id ? {
-        ...x, status: 'Submitted', updated: 'Just now',
-        messages: [...x.messages, { from: 'patient', name: s.user.name, date: 'Just now', body: reply }],
-        timeline: [...x.timeline.filter(t => t.state === 'done'), { label: 'Patient reply', date: 'Just now', state: 'active' }, ...x.timeline.filter(t => t.state === 'pending').slice(0) ],
-      } : x),
-    }));
-    setReply('');
-    toast('Reply sent to care team');
-  };
-
-  return (
-    <div className="content-narrow" style={{ maxWidth: 980 }}>
-      <button className="btn btn-ghost" onClick={() => nav('/requests')} style={{ marginBottom: 10, padding: '4px 8px' }}>
-        <Icon name="arrowLeft" size={14} /> Back to requests
-      </button>
-      <div className="page-header" style={{ alignItems: 'flex-start' }}>
-        <div>
-          <div className="row gap-sm" style={{ marginBottom: 8 }}>
-            <Badge>{r.type}</Badge>
-            <Badge>{r.status}</Badge>
-          </div>
-          <div className="page-title">{r.title}</div>
-          <div className="page-subtitle">Created {r.created} · Assigned to {r.assigned}</div>
-        </div>
-      </div>
-
-      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: 20 }}>
-        <div className="stack" style={{ gap: 20 }}>
-          <Card title="Conversation">
-            <div className="stack" style={{ gap: 16 }}>
-              {r.messages.map((m, i) => (
-                <div key={i} className={`msg-bubble ${m.from === 'patient' ? 'me' : ''}`}>
-                  <Avatar size="sm" initials={m.from === 'patient' ? 'SJ' : m.name.split(' ').map(x => x[0]).slice(0, 2).join('')}
-                    color={m.from === 'patient' ? null : 'linear-gradient(135deg, #196CD2, #1E40AF)'} />
-                  <div>
-                    <div className="msg-bubble-body">{m.body}</div>
-                    <div className="msg-bubble-meta">{m.name} · {m.date}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <hr className="divider" />
-            {r.status === 'Resolved' || r.status === 'Closed' ? (
-              <div style={{ padding: '14px 16px', background: 'var(--green-light)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Icon name="checkCircle" size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#166534' }}>This request has been resolved</div>
-                  <div style={{ fontSize: 12.5, color: '#166534', opacity: 0.8 }}>If you have a follow-up question, open a new request.</div>
-                </div>
-                <Button variant="secondary" size="sm" onClick={() => nav('/requests/new')}>New request</Button>
-              </div>
-            ) : (
-              <div className="stack" style={{ gap: 10 }}>
-                <textarea className="textarea" placeholder="Write a reply…" value={reply} onChange={(e) => setReply(e.target.value)} />
-                <div className="row" style={{ justifyContent: 'space-between' }}>
-                  <Button variant="ghost" icon="paperclip">Attach file</Button>
-                  <Button icon="send" onClick={sendReply} disabled={!reply.trim()}>Send reply</Button>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        <div className="stack" style={{ gap: 20 }}>
-          <Card title="Status timeline">
-            <div className="timeline">
-              {r.timeline.map((t, i) => (
-                <div key={i} className="timeline-item">
-                  <div className={`timeline-dot ${t.state}`}>
-                    {t.state === 'done' && <Icon name="check" size={14} />}
-                    {t.state === 'active' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }}></span>}
-                  </div>
-                  <div className="timeline-content">
-                    <div className="timeline-title">{t.label}</div>
-                    <div className="timeline-meta">{t.date}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-          <Card title="Details">
-            <div className="stack" style={{ gap: 10 }}>
-              <div><div className="card-eyebrow">Type</div><div>{r.type}</div></div>
-              <div><div className="card-eyebrow">Assigned</div><div>{r.assigned}</div></div>
-              <div><div className="card-eyebrow">Created</div><div>{r.created}</div></div>
-              <div><div className="card-eyebrow">Last update</div><div>{r.updated}</div></div>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
+export {
+  VisitsScreen, VisitDetailScreen,
+  TelemedicineScreen, TelemedCallScreen,
+  ScheduleAppointmentScreen, EConsultScreen,
 };

@@ -4,7 +4,7 @@ import { Icon } from './icons.jsx';
 
 // ----- Router (hash-based) -----
 const RouterContext = createContext(null);
-export const RouterProvider = ({ children }) => {
+const RouterProvider = ({ children }) => {
   const [path, setPath] = useState(() => window.location.hash.replace(/^#/, '') || '/login');
   useEffect(() => {
     const onHash = () => setPath(window.location.hash.replace(/^#/, '') || '/login');
@@ -14,11 +14,11 @@ export const RouterProvider = ({ children }) => {
   const nav = useCallback((to) => { window.location.hash = to; }, []);
   return <RouterContext.Provider value={{ path, nav }}>{children}</RouterContext.Provider>;
 };
-export const useRouter = () => useContext(RouterContext);
+const useRouter = () => useContext(RouterContext);
 
 // ----- Toasts -----
 const ToastContext = createContext(null);
-export const ToastProvider = ({ children }) => {
+const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const push = useCallback((message, kind = 'success') => {
     const id = Math.random().toString(36).slice(2);
@@ -39,7 +39,20 @@ export const ToastProvider = ({ children }) => {
     </ToastContext.Provider>
   );
 };
-export const useToast = () => useContext(ToastContext);
+const useToast = () => useContext(ToastContext);
+
+// ----- "See a provider" picker (global modal state) -----
+const PickerContext = createContext(null);
+const PickerProvider = ({ children }) => {
+  const [open, setOpen] = useState(false);
+  const value = useMemo(() => ({
+    pickerOpen: open,
+    openPicker: () => setOpen(true),
+    closePicker: () => setOpen(false),
+  }), [open]);
+  return <PickerContext.Provider value={value}>{children}</PickerContext.Provider>;
+};
+const usePicker = () => useContext(PickerContext);
 
 // ----- App state store -----
 const StoreContext = createContext(null);
@@ -60,6 +73,9 @@ const initialStore = {
     emergencyRelation: 'Spouse',
     communications: { email: true, sms: true, push: false },
   },
+  config: {
+    allowPatientMessages: true,  // feature flag: can patients initiate messages/requests?
+  },
   forms: [
     { id: 'f1', name: 'Pre-Visit Intake Form', desc: 'Required for your upcoming visit with Dr. Carter', due: 'Due May 27, 2026', status: 'Not started', progress: 0 },
     { id: 'f2', name: 'PHQ-9 Mood Screening', desc: 'Annual mental health screening', due: 'Due Jun 5, 2026', status: 'Not started', progress: 0 },
@@ -75,45 +91,10 @@ const initialStore = {
     { id: 'd3', name: 'Lab Results — Apr 2026.pdf', type: 'pdf', kind: 'Lab Result', date: 'Apr 22, 2026', status: 'Shared with care team' },
     { id: 'd4', name: 'Referral — Endocrinology.pdf', type: 'pdf', kind: 'Referral', date: 'Mar 15, 2026', status: 'Reviewed' },
   ],
-  requests: [
-    { id: 'r1', title: 'Question about Metformin side effects', type: 'Medical Question', status: 'Waiting for Patient', created: 'May 23, 2026', updated: '2 hours ago', assigned: 'Dr. Emily Carter',
-      description: "I've been feeling nauseous in the mornings after taking Metformin. Is this normal during the first weeks? Should I take it with food?",
-      messages: [
-        { from: 'patient', name: 'Sarah Johnson', date: 'May 23, 10:14 AM', body: "I've been feeling nauseous in the mornings after taking Metformin. Is this normal during the first weeks? Should I take it with food?" },
-        { from: 'team', name: 'Nurse Practitioner Lisa Ng', date: 'May 23, 1:32 PM', body: 'Mild nausea is common in the first 1–2 weeks. Please take Metformin with a full meal and a glass of water. Could you share when you started and how often it has happened?' },
-      ],
-      timeline: [
-        { label: 'Submitted', date: 'May 23, 10:14 AM', state: 'done' },
-        { label: 'In Review', date: 'May 23, 11:02 AM', state: 'done' },
-        { label: 'Waiting for Patient', date: 'May 23, 1:32 PM', state: 'active' },
-        { label: 'Resolved', date: '—', state: 'pending' },
-      ],
-    },
-    { id: 'r2', title: 'Refill request — Lisinopril', type: 'Prescription Question', status: 'In Review', created: 'May 21, 2026', updated: 'Yesterday', assigned: 'Pharmacy Team',
-      description: 'Running low on Lisinopril 10mg. Can I get a 90-day refill sent to my preferred pharmacy?',
-      messages: [
-        { from: 'patient', name: 'Sarah Johnson', date: 'May 21, 9:00 AM', body: 'Running low on Lisinopril 10mg. Can I get a 90-day refill sent to my preferred pharmacy?' },
-      ],
-      timeline: [
-        { label: 'Submitted', date: 'May 21, 9:00 AM', state: 'done' },
-        { label: 'In Review', date: 'May 22, 2:11 PM', state: 'active' },
-        { label: 'Waiting for Patient', date: '—', state: 'pending' },
-        { label: 'Resolved', date: '—', state: 'pending' },
-      ],
-    },
-    { id: 'r3', title: 'Update insurance on file', type: 'Insurance Question', status: 'Resolved', created: 'May 10, 2026', updated: 'May 12, 2026', assigned: 'Patient Services',
-      description: 'Switched insurance plans this month — uploaded the new card.',
-      messages: [
-        { from: 'patient', name: 'Sarah Johnson', date: 'May 10', body: 'Switched insurance plans — uploaded the new card.' },
-        { from: 'team', name: 'Patient Services', date: 'May 12', body: 'Got it. Your new plan is on file and verified for your next visit.' },
-      ],
-      timeline: [
-        { label: 'Submitted', date: 'May 10', state: 'done' },
-        { label: 'In Review', date: 'May 11', state: 'done' },
-        { label: 'Resolved', date: 'May 12', state: 'done' },
-      ],
-    },
-  ],
+  // The standalone "Requests" concept is retired in v2. Clinical async asks are now
+  // E-consults (encounters that live in `visits`). Administrative asks (insurance, billing,
+  // scheduling) are handled as Messages to Patient Services.
+  requests: [],
   messages: [
     { id: 'm1', from: 'Dr. Emily Carter', initials: 'EC', subject: 'Your lab results are in',
       preview: "Hi Sarah — your A1C came back at 6.4%, which is a noticeable improvement from last quarter. Let's discuss next steps on our call Thursday.",
@@ -147,6 +128,39 @@ const initialStore = {
     },
   ],
   visits: [
+    // ── Async e-consults are first-class encounters and live in the same list as visits.
+    //    Submitting one auto-opens an encounter on the EMR side (shown as `encounter`).
+    { id: 'e1', when: 'May 23, 2026', time: '10:14 AM', kind: 'E-consult — Metformin side effects', provider: 'Lisa Ng, NP', specialty: 'Primary Care', mode: 'E-consult', async: true, status: 'Provider replied', tense: 'upcoming', encounter: 'ENC-4471',
+      reason: 'Medical question or symptom',
+      description: "I've been feeling nauseous in the mornings after taking Metformin. Is this normal during the first weeks? Should I take it with food?",
+      assigned: 'Lisa Ng, NP',
+      diagnosis: null, plan: null,
+      messages: [
+        { from: 'patient', name: 'Sarah Johnson', date: 'May 23, 10:14 AM', body: "I've been feeling nauseous in the mornings after taking Metformin. Is this normal during the first weeks? Should I take it with food?" },
+        { from: 'team', name: 'Lisa Ng, NP', date: 'May 23, 1:32 PM', body: 'Mild nausea is common in the first 1–2 weeks. Please take Metformin with a full meal and a glass of water. Could you share when you started and how often it has happened?' },
+      ],
+      timeline: [
+        { label: 'Submitted', date: 'May 23, 10:14 AM', state: 'done' },
+        { label: 'Encounter opened', date: 'May 23, 10:14 AM', state: 'done' },
+        { label: 'Provider replied', date: 'May 23, 1:32 PM', state: 'active' },
+        { label: 'Resolved', date: '—', state: 'pending' },
+      ],
+    },
+    { id: 'e2', when: 'May 26, 2026', time: '9:02 AM', kind: 'E-consult — Lisinopril refill', provider: 'Care Team', specialty: 'Primary Care', mode: 'E-consult', async: true, status: 'In review', tense: 'upcoming', encounter: 'ENC-4488',
+      reason: 'Prescription refill',
+      description: 'Running low on Lisinopril 10mg. Can I get a 90-day refill sent to my preferred pharmacy (CVS — 901 Congress Ave)?',
+      assigned: 'Care Team',
+      diagnosis: null, plan: null,
+      messages: [
+        { from: 'patient', name: 'Sarah Johnson', date: 'May 26, 9:02 AM', body: 'Running low on Lisinopril 10mg. Can I get a 90-day refill sent to my preferred pharmacy (CVS — 901 Congress Ave)?' },
+      ],
+      timeline: [
+        { label: 'Submitted', date: 'May 26, 9:02 AM', state: 'done' },
+        { label: 'Encounter opened', date: 'May 26, 9:02 AM', state: 'done' },
+        { label: 'In review', date: 'May 26, 11:20 AM', state: 'active' },
+        { label: 'Resolved', date: '—', state: 'pending' },
+      ],
+    },
     { id: 'v1', when: 'May 28, 2026', time: '10:30 AM', kind: 'Virtual Follow-up', provider: 'Dr. Emily Carter', specialty: 'Primary Care', mode: 'Virtual', status: 'Ready to join', tense: 'upcoming',
       reason: 'Diabetes follow-up — review labs and Metformin response',
       diagnosis: null, plan: null,
@@ -174,6 +188,22 @@ const initialStore = {
       meds: [{ name: 'Metformin', dose: '500mg', freq: 'Twice daily — new' }],
       attachments: ['Endocrinology Consult Note.pdf'],
     },
+    { id: 'e3', when: 'Apr 02, 2026', time: '8:40 AM', kind: 'E-consult — Glucose tracking question', provider: 'Dr. Raj Patel', specialty: 'Endocrinology', mode: 'E-consult', async: true, status: 'Resolved', tense: 'past', encounter: 'ENC-4109',
+      reason: 'Test or result follow-up',
+      description: 'My fasting glucose has been around 110–120 most mornings. Is that where we want it, or should I adjust anything?',
+      assigned: 'Dr. Raj Patel',
+      diagnosis: null, plan: null,
+      messages: [
+        { from: 'patient', name: 'Sarah Johnson', date: 'Apr 2, 8:40 AM', body: 'My fasting glucose has been around 110–120 most mornings. Is that where we want it, or should I adjust anything?' },
+        { from: 'team', name: 'Dr. Raj Patel', date: 'Apr 2, 4:05 PM', body: 'That range is good progress and in line with our target. Keep tracking and we will review the full trend at your next visit. No medication change needed for now.' },
+      ],
+      timeline: [
+        { label: 'Submitted', date: 'Apr 2, 8:40 AM', state: 'done' },
+        { label: 'Encounter opened', date: 'Apr 2, 8:40 AM', state: 'done' },
+        { label: 'Provider replied', date: 'Apr 2, 4:05 PM', state: 'done' },
+        { label: 'Resolved', date: 'Apr 2, 4:06 PM', state: 'done' },
+      ],
+    },
     { id: 'v5', when: 'Jan 15, 2026', time: '3:30 PM', kind: 'In-Person Visit', provider: 'Dr. Emily Carter', specialty: 'Primary Care', mode: 'In-Person', status: 'Cancelled', tense: 'cancelled',
       reason: 'Cancelled due to scheduling conflict', diagnosis: null, plan: null,
     },
@@ -194,16 +224,6 @@ const initialStore = {
       { name: 'Peanuts', reaction: 'Throat swelling', severity: 'Severe', updated: 'Feb 2022' },
     ],
     vitals: { bp: '124/78 mmHg', hr: '76 bpm', temp: '98.4°F', weight: '146 lb', spo2: '98%', height: '5\'6"', bmi: '23.6', recorded: 'Apr 18, 2026' },
-    labs: [
-      { id: 'l1', name: 'A1C (Glycated Hemoglobin)', value: '6.4%', ref: '< 5.7% normal', flag: 'High', trend: 'improving', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: '7.1% (Feb 2026)' },
-      { id: 'l2', name: 'Fasting Glucose', value: '104 mg/dL', ref: '70–99 mg/dL', flag: 'Borderline', trend: 'improving', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: '122 mg/dL (Feb 2026)' },
-      { id: 'l3', name: 'LDL Cholesterol', value: '102 mg/dL', ref: '< 100 mg/dL', flag: 'Borderline', trend: 'stable', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: '108 mg/dL (Feb 2026)' },
-      { id: 'l4', name: 'HDL Cholesterol', value: '58 mg/dL', ref: '> 50 mg/dL', flag: 'Normal', trend: 'stable', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: '55 mg/dL (Feb 2026)' },
-      { id: 'l5', name: 'Triglycerides', value: '128 mg/dL', ref: '< 150 mg/dL', flag: 'Normal', trend: 'stable', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: '134 mg/dL (Feb 2026)' },
-      { id: 'l6', name: 'eGFR (Kidney function)', value: '84 mL/min', ref: '> 60 mL/min', flag: 'Normal', trend: 'stable', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: '86 mL/min (Feb 2026)' },
-      { id: 'l7', name: 'Creatinine', value: '0.82 mg/dL', ref: '0.5–1.1 mg/dL', flag: 'Normal', trend: 'stable', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: null },
-      { id: 'l8', name: 'Vitamin D (25-OH)', value: '28 ng/mL', ref: '30–100 ng/mL', flag: 'Low', trend: 'stable', date: 'May 20, 2026', orderedBy: 'Dr. Emily Carter', prev: '26 ng/mL (Feb 2026)' },
-    ],
     immunizations: [
       { name: 'Influenza (Flu)', date: 'Oct 14, 2025' },
       { name: 'COVID-19 Booster (Bivalent)', date: 'Sep 21, 2025' },
@@ -211,22 +231,38 @@ const initialStore = {
       { name: 'MMR', date: '1989 (childhood)' },
     ],
   },
-  // Clinic-configurable settings. Many clinics are reluctant to let patients
-  // initiate conversations, so patient-initiated messaging is a toggle.
-  settings: {
-    allowPatientMessaging: true,
-  },
+  providers: [
+    { id: 'p1', name: 'Dr. Emily Carter', initials: 'EC', specialty: 'Primary Care', color: 'linear-gradient(135deg, #0D875C, #0A6B49)', nextSlots: ['Tue May 28', 'Wed May 29', 'Fri May 31'] },
+    { id: 'p2', name: 'Dr. Raj Patel', initials: 'RP', specialty: 'Endocrinology', color: 'linear-gradient(135deg, #92400E, #B45309)', nextSlots: ['Thu May 30', 'Tue Jun 04', 'Wed Jun 05'] },
+    { id: 'p3', name: 'Lisa Ng, NP', initials: 'LN', specialty: 'Primary Care', color: 'linear-gradient(135deg, #196CD2, #1E40AF)', nextSlots: ['Tue May 28', 'Thu May 30', 'Mon Jun 03'] },
+    { id: 'p4', name: 'Dr. Marcus Chen', initials: 'MC', specialty: 'Cardiology', color: 'linear-gradient(135deg, #6B7280, #4B5563)', nextSlots: ['Mon Jun 03', 'Wed Jun 05', 'Thu Jun 06'] },
+    { id: 'p5', name: 'Dr. Anita Shah', initials: 'AS', specialty: 'Dermatology', color: 'linear-gradient(135deg, #DC2626, #B91C1C)', nextSlots: ['Tue May 28', 'Fri May 31', 'Mon Jun 03'] },
+  ],
+  locations: [
+    { id: 'loc1', name: 'Main Clinic — Downtown', address: '901 Congress Ave, Austin, TX 78701', distance: '1.2 mi' },
+    { id: 'loc2', name: 'North Austin Office', address: '12500 N Lamar Blvd, Austin, TX 78753', distance: '6.4 mi' },
+    { id: 'loc3', name: 'South Lamar Specialty Center', address: '2200 S Lamar Blvd, Austin, TX 78704', distance: '3.1 mi' },
+  ],
+  notifications: [
+    { id: 'n1', kind: 'message', title: 'New message from Dr. Carter', body: 'Your lab results are in', when: '2 min ago', read: false, to: '/messages/m1', icon: 'mail', color: '#0D875C' },
+    { id: 'n2', kind: 'appointment', title: 'Visit reminder', body: 'Virtual visit tomorrow at 10:30 AM with Dr. Carter', when: '1 hour ago', read: false, to: '/visits/v1', icon: 'calendar', color: '#196CD2' },
+    { id: 'n3', kind: 'econsult', title: 'E-consult update', body: 'Lisa Ng replied to your Metformin question', when: '3 hours ago', read: false, to: '/visits/e1', icon: 'message', color: '#92400E' },
+    { id: 'n4', kind: 'form', title: 'Form due soon', body: 'Complete your pre-visit intake form by May 27', when: 'Yesterday', read: false, to: '/forms/intake', icon: 'fileText', color: '#92400E' },
+    { id: 'n5', kind: 'lab', title: 'Lab results available', body: 'A1C and lipid panel results are now in your record', when: '2 days ago', read: true, to: '/medical-records', icon: 'droplet', color: '#196CD2' },
+    { id: 'n6', kind: 'appointment', title: 'Visit scheduled', body: 'Annual Physical with Dr. Carter on Jun 14', when: '4 days ago', read: true, to: '/visits/v2', icon: 'check', color: '#0D875C' },
+    { id: 'n7', kind: 'message', title: 'Insurance card on file updated', body: 'Patient Services confirmed your new plan', when: '2 weeks ago', read: true, to: '/messages/m4', icon: 'mail', color: '#0D875C' },
+  ],
 };
 
-export const StoreProvider = ({ children }) => {
+const StoreProvider = ({ children }) => {
   const [store, setStore] = useState(initialStore);
   const value = useMemo(() => ({ store, setStore }), [store]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 };
-export const useStore = () => useContext(StoreContext);
+const useStore = () => useContext(StoreContext);
 
 // ----- Small components -----
-export const Button = ({ variant = 'primary', size = 'md', icon, iconRight, children, className = '', block, ...rest }) => {
+const Button = ({ variant = 'primary', size = 'md', icon, iconRight, children, className = '', block, ...rest }) => {
   const cls = ['btn', `btn-${variant}`, size === 'sm' && 'btn-sm', size === 'lg' && 'btn-lg', block && 'btn-block', className].filter(Boolean).join(' ');
   return (
     <button className={cls} {...rest}>
@@ -237,7 +273,8 @@ export const Button = ({ variant = 'primary', size = 'md', icon, iconRight, chil
   );
 };
 
-export const Badge = ({ status, children }) => {
+const Badge = ({ status, children }) => {
+  // Map known statuses to colors
   const map = {
     'Ready to join': 'green',
     'Scheduled': 'blue',
@@ -245,9 +282,14 @@ export const Badge = ({ status, children }) => {
     'Cancelled': 'gray',
     'Submitted': 'blue',
     'In Review': 'amber',
+    'In review': 'amber',
+    'Provider replied': 'orange',
     'Waiting for Patient': 'orange',
     'Resolved': 'green',
     'Closed': 'gray',
+    'E-consult': 'teal',
+    'Async': 'teal',
+    'Phone': 'blue',
     'Active': 'green',
     'Verified': 'green',
     'Not started': 'gray',
@@ -257,11 +299,6 @@ export const Badge = ({ status, children }) => {
     'Mild': 'gray',
     'Virtual': 'teal',
     'In-Person': 'blue',
-    'Normal': 'green',
-    'High': 'red',
-    'Low': 'amber',
-    'Borderline': 'amber',
-    'Improving': 'green',
   };
   const color = map[children || status] || 'gray';
   return (
@@ -271,7 +308,7 @@ export const Badge = ({ status, children }) => {
   );
 };
 
-export const Card = ({ title, action, children, className = '', flush = false }) => (
+const Card = ({ title, action, children, className = '', flush = false }) => (
   <div className={`card ${flush ? 'card-flush' : ''} ${className}`}>
     {(title || action) && (
       <div className="card-header" style={flush ? { padding: '18px 20px 12px', marginBottom: 0 } : {}}>
@@ -283,7 +320,7 @@ export const Card = ({ title, action, children, className = '', flush = false })
   </div>
 );
 
-export const Modal = ({ open, onClose, title, children, footer, wide }) => {
+const Modal = ({ open, onClose, title, children, footer, wide }) => {
   if (!open) return null;
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -301,7 +338,8 @@ export const Modal = ({ open, onClose, title, children, footer, wide }) => {
   );
 };
 
-export const Avatar = ({ initials, name, size = 'md', color }) => {
+const Avatar = ({ initials, name, size = 'md', color }) => {
+  const colorClass = color || '';
   const sz = size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : size === 'xl' ? 'xl' : '';
   return (
     <div className={`avatar ${sz}`} style={color ? { background: color } : {}}>
@@ -310,7 +348,7 @@ export const Avatar = ({ initials, name, size = 'md', color }) => {
   );
 };
 
-export const StatBlock = ({ label, value, sub, icon, color = 'var(--primary)' }) => (
+const StatBlock = ({ label, value, sub, icon, color = 'var(--primary)' }) => (
   <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
     {icon && (
       <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -324,3 +362,11 @@ export const StatBlock = ({ label, value, sub, icon, color = 'var(--primary)' })
     </div>
   </div>
 );
+
+export {
+  RouterProvider, useRouter,
+  ToastProvider, useToast,
+  StoreProvider, useStore,
+  Button, Badge, Card, Modal, Avatar, StatBlock,
+  PickerProvider, usePicker,
+};
