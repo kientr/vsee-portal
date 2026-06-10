@@ -324,7 +324,7 @@ const DashboardScreen = () => {
       {/* Needs your attention — leads the dashboard. Shows a calm empty state when clear. */}
       <div className="card-eyebrow" style={{ marginBottom: 10 }}>Needs your attention</div>
       {attn.length > 0 ? (
-        <div className="stack" style={{ gap: 12, marginBottom: 28 }}>
+        <div className="grid grid-2" style={{ gap: 12, marginBottom: 28 }}>
           {attn.map((a, i) => <AttnItem key={i} {...a} />)}
         </div>
       ) : (
