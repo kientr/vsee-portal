@@ -44,7 +44,6 @@ const Sidebar = () => {
   const F = store.features;
   const openReqs = store.requests.filter(r => r.open).length;
   const unread = store.messages.filter(m => m.unread).length;
-  const showSeeProvider = F.scheduling || F.econsult;
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -55,11 +54,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {showSeeProvider && (
-        <button className="btn btn-primary btn-block see-provider-btn" onClick={() => nav('/see-provider')} style={{ margin: '4px 0 14px' }}>
-          <Icon name="plus" size={16} /> See a provider
-        </button>
-      )}
+      <div style={{ height: 8 }} />
 
       {NAV_GROUPS.map((group, gi) => {
         const items = group.items.filter(n => !n.feature || F[n.feature]);

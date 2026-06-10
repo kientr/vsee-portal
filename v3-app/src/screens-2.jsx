@@ -87,6 +87,7 @@ const VisitsScreen = () => {
           <div className="page-title">Visits &amp; e-consults</div>
           <div className="page-subtitle">Every encounter in one place — video, phone, in-person, and async e-consults.</div>
         </div>
+        <Button icon="plus" onClick={() => nav('/see-provider')}>See a provider</Button>
       </div>
 
       <div className="tabs">
