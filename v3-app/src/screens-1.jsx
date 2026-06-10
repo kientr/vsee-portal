@@ -240,10 +240,9 @@ const RecentMessagesCard = () => {
     </Card>
   );
 };
-
-// ----- Dashboard (v3 task hub) -----
+// ----- Dashboard (v3 patient action center) -----
 const AttnItem = ({ icon, color, title, meta, cta, onClick, primary }) => (
-  <button className="card" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer', width: '100%' }}>
+  <button className="card" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer', width: '100%', borderLeft: `3px solid ${color}` }}>
     <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
       <Icon name={icon} size={18} />
     </div>
@@ -251,85 +250,222 @@ const AttnItem = ({ icon, color, title, meta, cta, onClick, primary }) => (
       <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
       <div className="muted" style={{ fontSize: 12.5 }}>{meta}</div>
     </div>
-    <span className={`btn ${primary ? 'btn-primary' : 'btn-secondary'} btn-sm`} style={{ flexShrink: 0 }}>{cta}</span>
+    <span className={`btn ${primary ? 'btn-primary' : 'btn-secondary'} btn-sm`} style={{ flexShrink: 0 }}>
+      {primary && icon === 'video' && <Icon name="video" size={14} />}{cta}
+    </span>
   </button>
 );
 
-const ActivityCard = ({ icon, label, body, to }) => {
-  const { nav } = useRouter();
+const ApptRow = ({ v, onJoin, onView, canVideo }) => {
+  const [mon, day] = v.when.split(',')[0].split(' ');
+  const ready = v.status === 'Ready to join' && v.mode === 'Virtual';
+  const method = v.mode === 'Virtual' ? 'Video visit' : v.mode === 'In-Person' ? 'In-person' : v.mode + ' visit';
   return (
-    <button className="card" onClick={() => nav(to)} style={{ textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center' }}>
-        <Icon name={icon} size={16} />
+    <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
+      <div style={{ width: 52, textAlign: 'center', flexShrink: 0, padding: '6px 0', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{mon}</div>
+        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1 }}>{day}</div>
       </div>
-      <div style={{ fontWeight: 700, fontSize: 14, marginTop: 2 }}>{label}</div>
-      <div className="muted" style={{ fontSize: 12.5 }}>{body}</div>
-    </button>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>{v.kind}</div>
+        <div className="muted" style={{ fontSize: 12.5 }}>{v.provider} · {v.time} · {method}</div>
+      </div>
+      <Badge>{v.status}</Badge>
+      {ready && canVideo
+        ? <Button size="sm" icon="video" onClick={onJoin}>Join</Button>
+        : <Button variant="secondary" size="sm" onClick={onView}>View</Button>}
+    </div>
   );
 };
 
 const DashboardScreen = () => {
   const { nav } = useRouter();
   const { store } = useStore();
+  const F = store.features;
+  const [preview, setPreview] = useState('active'); // prototype state switcher: 'active' | 'caught-up'
+  const caughtUp = preview === 'caught-up';
+  const firstName = store.user.name.split(' ')[0];
+
+  const readyVisit = store.visits.find(v => v.tense === 'upcoming' && v.status === 'Ready to join' && !v.async);
+  const upcoming = store.visits.filter(v => v.tense === 'upcoming' && !v.async);
+  const unreadMsg = F.messages ? store.messages.find(m => m.unread) : null;
+  const repliedEconsult = F.econsult ? store.visits.find(v => v.async && v.status === 'Provider Responded') : null;
+  const pendingForms = F.forms ? store.forms.filter(f => f.status !== 'Completed') : [];
+  const intakeForm = pendingForms.find(f => f.id === 'f1');
+  const refillAction = F.refills ? store.refills.find(r => r.needsAction) : null;
+
+  // Needs your attention — time-sensitive, most urgent first
+  const attn = [];
+  if (!caughtUp) {
+    if (readyVisit && F.video) attn.push({ icon: 'video', color: '#196CD2', title: 'Join your video visit', meta: `${readyVisit.provider} · ${readyVisit.when}, ${readyVisit.time}`, cta: 'Join visit', primary: true, onClick: () => nav('/telemedicine/call') });
+    if (intakeForm) attn.push({ icon: 'fileText', color: '#92400E', title: 'Complete pre-visit intake', meta: `Required before your May 28 visit · ${intakeForm.due}`, cta: 'Complete intake', onClick: () => nav('/forms/intake') });
+    if (repliedEconsult) attn.push({ icon: 'message', color: '#92400E', title: 'Review e-consult response', meta: `${repliedEconsult.assigned} replied about ${repliedEconsult.kind.replace('E-consult — ', '').toLowerCase()}`, cta: 'Review', onClick: () => nav('/visits/' + repliedEconsult.id) });
+    if (unreadMsg) attn.push({ icon: 'mail', color: '#0D875C', title: `New message from ${unreadMsg.from}`, meta: unreadMsg.subject, cta: 'Read message', onClick: () => nav('/messages/' + unreadMsg.id) });
+    if (refillAction) attn.push({ icon: 'pill', color: '#196CD2', title: 'Refill needs your confirmation', meta: `${refillAction.med} · confirm pharmacy to continue`, cta: 'Open', onClick: () => nav('/refills') });
+  }
+
+  // To-Do list — dynamic, hides empty categories
+  const todos = [];
+  if (!caughtUp) {
+    pendingForms.forEach(f => todos.push({ label: `Complete ${f.name}`, to: f.id === 'f1' ? '/forms/intake' : '/forms' }));
+    if (repliedEconsult) todos.push({ label: 'Review e-consult response', to: '/visits/' + repliedEconsult.id });
+    if (unreadMsg) todos.push({ label: 'Reply to your care team message', to: '/messages/' + unreadMsg.id });
+    if (refillAction) todos.push({ label: `Confirm pharmacy for ${refillAction.med} refill`, to: '/refills' });
+  }
+
+  const hasUrgent = attn.length > 0;
+  const showMonitoring = F.rpm;
+  const bp = store.medical.rpm.find(r => r.label === 'Blood pressure');
+
+  // ---- building blocks ----
+  const StartCareCard = ({ prominent }) => (
+    <div className="card" style={prominent
+      ? { background: 'linear-gradient(135deg, #0D875C 0%, #074D35 100%)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }
+      : {}}>
+      {prominent ? (
+        <>
+          <div>
+            <h3 style={{ color: 'white', fontSize: 18, marginBottom: 4 }}>See a provider</h3>
+            <p style={{ opacity: 0.9, fontSize: 14 }}>Choose someone from your care team, then pick an available option.</p>
+          </div>
+          <Button variant="secondary" size="lg" icon="plus" onClick={() => nav('/see-provider')}
+            style={{ background: 'white', color: 'var(--primary-dark)', borderColor: 'transparent', fontWeight: 700, flexShrink: 0 }}>Start</Button>
+        </>
+      ) : (
+        <>
+          <div className="card-eyebrow">Start care</div>
+          <h3 className="card-title" style={{ marginBottom: 4 }}>See a provider</h3>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Choose from your care team, then an available option.</p>
+          <div className="stack" style={{ gap: 8 }}>
+            <Button icon="plus" block onClick={() => nav('/see-provider')}>See a provider</Button>
+            {F.econsult && <Button variant="secondary" icon="message" block onClick={() => nav('/see-provider')}>Send an e-consult</Button>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const UpcomingCare = () => (
+    <div>
+      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Upcoming care</div>
+      {upcoming.length === 0 ? (
+        <div className="card"><div className="empty-state" style={{ padding: '20px 0' }}>
+          <div style={{ fontWeight: 600, color: 'var(--text)' }}>No upcoming visits</div>
+          <div>You can schedule care with your provider when needed.</div>
+          <Button variant="secondary" size="sm" icon="plus" style={{ marginTop: 10 }} onClick={() => nav('/see-provider')}>See a provider</Button>
+        </div></div>
+      ) : (
+        <div className="stack" style={{ gap: 10 }}>
+          {upcoming.map(v => <ApptRow key={v.id} v={v} canVideo={F.video} onJoin={() => nav('/telemedicine/call')} onView={() => nav('/visits/' + v.id)} />)}
+        </div>
+      )}
+    </div>
+  );
+
+  const ToDoCard = () => (
+    <Card title="To-do list">
+      {todos.length === 0 ? (
+        <div className="muted" style={{ fontSize: 13.5 }}>Nothing to do right now. Forms, messages, payments, and care tasks will appear here.</div>
+      ) : (
+        <div className="stack" style={{ gap: 0 }}>
+          {todos.map((t, i) => (
+            <button key={i} onClick={() => nav(t.to)} style={{ background: 'transparent', border: 'none', borderBottom: i < todos.length - 1 ? '1px solid var(--border)' : 'none', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', width: '100%' }}>
+              <span style={{ width: 18, height: 18, borderRadius: 5, border: '1.5px solid var(--border-strong)', flexShrink: 0 }}></span>
+              <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500 }}>{t.label}</span>
+              <Icon name="chevronRight" size={15} style={{ color: 'var(--text-muted)' }} />
+            </button>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+
+  const RecentMessages = () => (
+    <Card title="Recent messages" action={<a href="#" onClick={(e) => { e.preventDefault(); nav('/messages'); }} style={{ fontSize: 13 }}>Inbox</a>}>
+      <div className="stack" style={{ gap: 0 }}>
+        {store.messages.slice(0, 3).map((m, i) => (
+          <button key={m.id} onClick={() => nav('/messages/' + m.id)} style={{ background: 'transparent', border: 'none', borderBottom: i < 2 ? '1px solid var(--border)' : 'none', textAlign: 'left', padding: '10px 0', cursor: 'pointer', width: '100%', display: 'flex', gap: 10 }}>
+            <Avatar initials={m.initials} size="sm" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="row-between"><span style={{ fontWeight: 600, fontSize: 13 }}>{m.unread && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', marginRight: 6 }}></span>}{m.from}</span><span className="muted" style={{ fontSize: 11.5 }}>{m.date}</span></div>
+              <div className="muted" style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.subject}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+
+  const MonitoringCard = () => (
+    <Card title="Monitoring" action={<a href="#" onClick={(e) => { e.preventDefault(); F.monitoring ? nav('/monitoring') : nav('/medical-records'); }} style={{ fontSize: 13 }}>View trends</a>}>
+      <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center' }}><Icon name="heart" size={18} /></div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>{bp ? bp.value : '124/78'} <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>mmHg</span></div>
+          <div className="muted" style={{ fontSize: 12 }}>Latest blood pressure · {bp ? bp.sub.split('·')[1] : 'today'}</div>
+        </div>
+      </div>
+    </Card>
+  );
 
   return (
     <div className="content-narrow">
-      <div className="page-header">
+      <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div>
-          <div className="page-title">Good morning, {store.user.name.split(' ')[0]}</div>
-          <div className="page-subtitle">Here's what needs your attention today.</div>
+          <div className="page-title">Good morning, {firstName}</div>
+          <div className="page-subtitle">{hasUrgent ? "Here's what needs your attention today." : "You're all set — here's your care at a glance."}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)' }}></span> Updated just now
+          </div>
+          <div className="seg" style={{ display: 'inline-flex', marginTop: 8, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', fontSize: 12 }}>
+            {[['active', 'Active'], ['caught-up', 'All caught up']].map(([k, l]) => (
+              <button key={k} onClick={() => setPreview(k)} title="Preview dashboard state" style={{ border: 'none', padding: '6px 10px', cursor: 'pointer', fontWeight: 600, background: preview === k ? 'var(--primary)' : 'white', color: preview === k ? 'white' : 'var(--text-secondary)' }}>{l}</button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* See a provider hero */}
-      <div className="card" style={{ background: 'linear-gradient(135deg, #0D875C 0%, #074D35 100%)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
-        <div>
-          <h3 style={{ color: 'white', fontSize: 18, marginBottom: 4 }}>See a provider</h3>
-          <p style={{ opacity: 0.9, fontSize: 14 }}>Book, join, or send an e-consult to your care team.</p>
-        </div>
-        <Button variant="secondary" size="lg" icon="plus" onClick={() => nav('/see-provider')}
-          style={{ background: 'white', color: 'var(--primary-dark)', borderColor: 'transparent', fontWeight: 700, flexShrink: 0 }}>
-          Start
-        </Button>
-      </div>
-
-      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Needs your attention</div>
-      <div className="stack" style={{ gap: 12, marginBottom: 28 }}>
-        <AttnItem icon="video" color="#196CD2" title="Join your video visit" meta="Dr. Emily Carter · tomorrow, 10:30 AM" cta="Join" primary onClick={() => nav('/telemedicine/call')} />
-        <AttnItem icon="fileText" color="#92400E" title="Complete pre-visit intake" meta="Required before your May 28 visit · due May 27" cta="Continue" onClick={() => nav('/forms/intake')} />
-        <AttnItem icon="message" color="#0D875C" title="New message from Dr. Carter" meta="Your lab results are in" cta="Read" onClick={() => nav('/messages')} />
-      </div>
-
-      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Care activity</div>
-      <div className="grid grid-3" style={{ marginBottom: 28 }}>
-        <ActivityCard icon="calendar" label="Upcoming visit" body="Annual physical · Jun 14, 2:15 PM" to="/visits" />
-        <ActivityCard icon="inbox" label="Active request" body="Metformin refill · submitted yesterday" to="/requests" />
-        <ActivityCard icon="message" label="Recent message" body="Nurse Lisa Ng · May 22" to="/messages" />
-      </div>
-
-      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Records &amp; forms</div>
-      <div className="stack" style={{ gap: 12 }}>
-        <button className="card" onClick={() => nav('/visits/v3')} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer', background: 'var(--primary-100)' }}>
-          <div style={{ width: 38, height: 38, borderRadius: 8, background: 'white', color: 'var(--primary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <Icon name="fileText" size={17} />
+      {/* STATE A — urgent tasks: Needs Your Attention leads, See a provider is compact */}
+      {hasUrgent ? (
+        <>
+          <div className="card-eyebrow" style={{ marginBottom: 10 }}>Needs your attention</div>
+          <div className="stack" style={{ gap: 12, marginBottom: 28 }}>
+            {attn.map((a, i) => <AttnItem key={i} {...a} />)}
           </div>
-          <div style={{ flex: 1 }}>
-            <strong style={{ fontSize: 14, display: 'block' }}>Visit summary ready</strong>
-            <div className="muted" style={{ fontSize: 12.5 }}>From your Apr 18 visit with Dr. Carter.</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20, alignItems: 'start' }}>
+            <div className="stack" style={{ gap: 24 }}>
+              <UpcomingCare />
+              {todos.length > 0 && <div><div style={{ height: 0 }} /><ToDoCard /></div>}
+            </div>
+            <div className="stack" style={{ gap: 20 }}>
+              <StartCareCard prominent={false} />
+              {F.messages && <RecentMessages />}
+              {showMonitoring && <MonitoringCard />}
+            </div>
           </div>
-          <span className="btn btn-primary btn-sm">View</span>
-        </button>
-        <button className="card" onClick={() => nav('/forms')} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer' }}>
-          <div style={{ width: 38, height: 38, borderRadius: 8, background: 'var(--amber-light)', color: '#92400E', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <Icon name="fileText" size={17} />
+        </>
+      ) : (
+        /* STATE B — all caught up: Start Care leads */
+        <>
+          <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'var(--green-light)', border: 'none', marginBottom: 20 }}>
+            <Icon name="checkCircle" size={22} style={{ color: 'var(--success-dark)' }} />
+            <div>
+              <div style={{ fontWeight: 700 }}>You're all caught up.</div>
+              <div className="muted" style={{ fontSize: 13 }}>No visits, forms, messages, or care tasks need your attention right now.</div>
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <strong style={{ fontSize: 14, display: 'block' }}>{store.forms.filter(f => f.status !== 'Completed').length} pending forms</strong>
-            <div className="muted" style={{ fontSize: 12.5 }}>Pre-visit intake, PHQ-9, medication reconciliation.</div>
+          <div style={{ marginBottom: 24 }}><StartCareCard prominent={true} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20, alignItems: 'start' }}>
+            <UpcomingCare />
+            <div className="stack" style={{ gap: 20 }}>
+              {F.messages && <RecentMessages />}
+              {showMonitoring && <MonitoringCard />}
+            </div>
           </div>
-          <span className="btn btn-secondary btn-sm">Open</span>
-        </button>
-      </div>
+        </>
+      )}
     </div>
   );
 };

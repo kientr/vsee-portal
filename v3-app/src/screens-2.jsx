@@ -122,30 +122,36 @@ const VisitsScreen = () => {
   );
 };
 
+// E-consult detail — structured healthcare support ticket
 const EConsultDetail = ({ v }) => {
   const { nav } = useRouter();
   const { store, setStore } = useStore();
   const toast = useToast();
   const [reply, setReply] = useState('');
-  const resolved = v.status === 'Resolved';
+  const closed = v.status === 'Closed' || v.status === 'Resolved';
 
   const sendReply = () => {
     if (!reply.trim()) return;
     setStore(s => ({
       ...s,
       visits: s.visits.map(x => x.id === v.id ? {
-        ...x, status: 'In review', updated: 'Just now',
+        ...x, status: 'In Review',
         messages: [...x.messages, { from: 'patient', name: s.user.name, date: 'Just now', body: reply }],
       } : x),
     }));
     setReply('');
-    toast('Reply sent to your care team');
+    toast('Follow-up sent to your care team');
+  };
+  const closeTicket = () => {
+    setStore(s => ({ ...s, visits: s.visits.map(x => x.id === v.id ? { ...x, status: 'Closed', tense: 'past' } : x) }));
+    toast('E-consult closed');
+    nav('/visits');
   };
 
   return (
     <div className="content-narrow" style={{ maxWidth: 980 }}>
       <button className="btn btn-ghost" onClick={() => nav('/visits')} style={{ marginBottom: 10, padding: '4px 8px' }}>
-        <Icon name="arrowLeft" size={14} /> Back to visits &amp; e-consults
+        <Icon name="arrowLeft" size={14} /> Back to visits
       </button>
       <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div>
@@ -153,14 +159,54 @@ const EConsultDetail = ({ v }) => {
             <Badge>E-consult</Badge>
             <Badge>{v.status}</Badge>
           </div>
-          <div className="page-title">{v.kind}</div>
-          <div className="page-subtitle">Submitted {v.when} · Care team: {v.assigned}</div>
+          <div className="page-title">{v.kind.replace('E-consult — ', '')}</div>
+          <div className="page-subtitle">Ticket {v.encounter} · Submitted {v.when} · {v.assigned}</div>
         </div>
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         <div className="stack" style={{ gap: 20 }}>
-          <Card title="Conversation">
+          {/* Response-time commitment */}
+          <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--primary-100)', border: 'none' }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'white', color: 'var(--primary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="clock" size={18} /></div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{closed ? 'This e-consult is closed' : `Expected response: ${v.expected || 'within 24–48 hours'}`}</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>For urgent symptoms, call emergency services or contact your clinic directly.</div>
+            </div>
+          </div>
+
+          <Card title="Submitted concern">
+            <div style={{ fontSize: 14 }}>{v.description}</div>
+          </Card>
+
+          {v.intake && (
+            <Card title="Intake answers">
+              <div className="stack" style={{ gap: 0 }}>
+                {v.intake.map((q, i) => (
+                  <div key={i} className="row-between" style={{ padding: '10px 0', borderBottom: i < v.intake.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'flex-start', gap: 16 }}>
+                    <span className="muted" style={{ fontSize: 13 }}>{q.q}</span>
+                    <span style={{ fontWeight: 600, fontSize: 13.5, textAlign: 'right' }}>{q.a}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {v.attachments && v.attachments.length > 0 && (
+            <Card title="Attachments">
+              <div className="stack">
+                {v.attachments.map((a, i) => (
+                  <div key={i} className="row" style={{ padding: '8px 0' }}>
+                    <div className="doc-icon"><Icon name="fileImage" size={18} /></div>
+                    <div style={{ flex: 1, fontWeight: 600, fontSize: 13.5 }}>{a}</div>
+                    <button className="icon-btn" style={{ width: 32, height: 32 }}><Icon name="download" size={15} /></button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          <Card title={v.response ? 'Provider response & activity' : 'Activity'}>
             <div className="stack" style={{ gap: 16 }}>
               {v.messages.map((m, i) => (
                 <div key={i} className={`msg-bubble ${m.from === 'patient' ? 'me' : ''}`}>
@@ -174,17 +220,18 @@ const EConsultDetail = ({ v }) => {
               ))}
             </div>
             <hr className="divider" />
-            {resolved ? (
+            {closed ? (
               <div className="row" style={{ gap: 10, alignItems: 'center', background: 'var(--green-light)', color: '#166534', padding: '12px 14px', borderRadius: 10 }}>
                 <Icon name="checkCircle" size={18} />
-                <div style={{ fontSize: 13.5 }}>This e-consult is resolved. Need more help? <a href="#" onClick={(e) => { e.preventDefault(); nav('/visits/econsult'); }} style={{ fontWeight: 700 }}>Start a new e-consult</a>.</div>
+                <div style={{ fontSize: 13.5 }}>This e-consult is closed. Need more help? <a href="#" onClick={(e) => { e.preventDefault(); nav('/see-provider'); }} style={{ fontWeight: 700 }}>Start a new visit</a>.</div>
               </div>
             ) : (
               <div className="stack" style={{ gap: 10 }}>
-                <textarea className="textarea" placeholder="Write a reply…" value={reply} onChange={(e) => setReply(e.target.value)} />
+                <div className="card-eyebrow">Add a follow-up</div>
+                <textarea className="textarea" placeholder="Reply to your care team…" value={reply} onChange={(e) => setReply(e.target.value)} />
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <Button variant="ghost" icon="paperclip">Attach file</Button>
-                  <Button icon="send" onClick={sendReply} disabled={!reply.trim()}>Send reply</Button>
+                  <Button icon="send" onClick={sendReply} disabled={!reply.trim()}>Send follow-up</Button>
                 </div>
               </div>
             )}
@@ -208,21 +255,15 @@ const EConsultDetail = ({ v }) => {
               ))}
             </div>
           </Card>
-          <Card title="Encounter">
-            <div className="stack" style={{ gap: 10 }}>
-              <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                  <Icon name="fileText" size={15} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>Opened automatically</div>
-                  <div className="muted" style={{ fontSize: 12.5 }}>Your e-consult opened encounter <strong>{v.encounter}</strong> in the EMR. Everything you send here is filed to it.</div>
-                </div>
-              </div>
-              <hr className="divider" />
-              <div><div className="card-eyebrow">About</div><div>{v.reason}</div></div>
-              <div><div className="card-eyebrow">Care team</div><div>{v.assigned}</div></div>
+          <Card title="Actions">
+            <div className="stack" style={{ gap: 8 }}>
+              {!closed && <Button variant="secondary" icon="message" block onClick={() => { const el = document.querySelector('textarea'); if (el) el.focus(); }}>Add follow-up</Button>}
+              <Button variant="secondary" icon="plus" block onClick={() => nav('/see-provider')}>Start a new visit</Button>
+              {!closed && <Button variant="ghost" icon="check" block onClick={closeTicket}>Close this e-consult</Button>}
             </div>
+          </Card>
+          <Card title="Encounter">
+            <div className="muted" style={{ fontSize: 12.5 }}>Filed to encounter <strong>{v.encounter}</strong> in the EMR. Everything you send here is recorded to it.</div>
           </Card>
         </div>
       </div>
@@ -610,13 +651,43 @@ const TelemedCallScreen = () => {
 };
 
 // ─────────────────────────────────────────────
-// "See a provider" multi-step wizard (v3)
-// when → visit type → provider → intake → (schedule | e-consult) → payment → review
+// "See a provider" — DOCTOR-FIRST flow (v3)
+// provider → visit type (doctor-specific availability) → [slot] → intake → [payment] → review
 // ─────────────────────────────────────────────
-const SP_METHOD_LABEL = { video: 'Video visit', phone: 'Phone visit', 'in-person': 'In-person visit', econsult: 'E-consult (async)' };
-const SP_PROVIDER_LABEL = { first: 'First available provider', pcp: 'Dr. Emily Carter — Primary Care', specific: 'Dr. Raj Patel — Endocrinology' };
+// Care team listed first; First Available at the bottom. Each provider exposes only
+// the visit types actually available for them.
+const CARE_TEAM = [
+  { id: 'carter', name: 'Dr. Emily Carter', specialty: 'Primary Care', initials: 'EC', color: 'linear-gradient(135deg, #0D875C, #0A6B49)', avail: 'Available now for video', online: true, types: ['video-now', 'phone-now', 'video-sched', 'inperson', 'econsult'] },
+  { id: 'ng', name: 'Lisa Ng, NP', specialty: 'Nurse Practitioner', initials: 'LN', color: 'linear-gradient(135deg, #196CD2, #1E40AF)', avail: 'Next available today 3:30 PM', online: false, types: ['video-sched', 'phone-sched', 'econsult'] },
+  { id: 'patel', name: 'Dr. Raj Patel', specialty: 'Endocrinology', initials: 'RP', color: 'linear-gradient(135deg, #92400E, #B45309)', avail: 'Next available Jun 14', online: false, types: ['video-sched', 'inperson', 'econsult'] },
+];
+const FIRST_AVAIL = { id: 'first', name: 'First available provider', specialty: 'Fastest option across your care team', initials: '⚡', color: 'linear-gradient(135deg, #6B7280, #4B5563)', avail: 'Connect now', online: true, types: ['video-now', 'phone-now', 'econsult'] };
+const VISIT_TYPES = {
+  'video-now':   { label: 'Video visit now', icon: 'video', group: 'now', now: true, slot: false, pay: true, desc: 'Connect over secure video right away.' },
+  'phone-now':   { label: 'Phone visit now', icon: 'phone', group: 'now', now: true, slot: false, pay: true, desc: "We'll call you at your number." },
+  'video-sched': { label: 'Scheduled video visit', icon: 'video', group: 'later', slot: true, pay: true, desc: 'Pick a day and time for a video visit.' },
+  'phone-sched': { label: 'Scheduled phone visit', icon: 'phone', group: 'later', slot: true, pay: true, desc: 'Pick a day and time for a phone call.' },
+  'inperson':    { label: 'In-person visit', icon: 'building', group: 'later', slot: true, pay: true, desc: 'Visit a clinic location near you.' },
+  'econsult':    { label: 'E-consult', icon: 'message', group: 'async', async: true, slot: false, pay: false, tag: 'Async · 24–48h', desc: 'Send your concern and intake for review. Response within 24–48 hours.' },
+};
 const SP_SLOTS = ['9:00', '9:30', '10:00', '10:30', '11:00', '11:30', '2:15', '2:45', '3:15'];
 const SP_TAKEN = new Set(['9:00', '11:30']);
+const ProviderRow = ({ p, selected, onClick }) => (
+  <button className="picker-option" onClick={onClick}
+    style={{ borderColor: selected ? 'var(--primary)' : undefined, background: selected ? 'var(--primary-100)' : undefined, cursor: 'pointer' }}>
+    <div className="avatar" style={{ background: p.color, flexShrink: 0 }}>{p.initials}</div>
+    <div style={{ flex: 1 }}>
+      <div className="picker-option-title">{p.name}</div>
+      <div className="muted" style={{ fontSize: 13 }}>{p.specialty}</div>
+    </div>
+    <div className="row gap-sm" style={{ alignItems: 'center' }}>
+      <span className="badge" style={{ background: p.online ? 'var(--success-light)' : 'var(--grey-200)', color: p.online ? 'var(--success-dark)' : 'var(--text-secondary)', border: 'none', fontSize: 11.5 }}>
+        {p.online && <span className="dot" style={{ background: 'var(--success)' }}></span>}{p.avail}
+      </span>
+      <Icon name="chevronRight" size={18} style={{ color: 'var(--text-muted)' }} />
+    </div>
+  </button>
+);
 
 const ChoiceRow = ({ icon, title, desc, tag, selected, disabled, onClick }) => (
   <button className="picker-option" onClick={disabled ? undefined : onClick} disabled={disabled}
@@ -637,56 +708,91 @@ const ChoiceRow = ({ icon, title, desc, tag, selected, disabled, onClick }) => (
 
 const SeeProviderScreen = () => {
   const { nav } = useRouter();
-  const { setStore } = useStore();
+  const { store, setStore } = useStore();
   const toast = useToast();
-  const [when, setWhen] = useState(null);
-  const [method, setMethod] = useState(null);
-  const [provider, setProvider] = useState(null);
-  const [reason, setReason] = useState('');
+  const F = store.features;
+  const [providerId, setProviderId] = useState(null);
+  const [typeKey, setTypeKey] = useState(null);
   const [slot, setSlot] = useState('2:15');
+  const [reason, setReason] = useState('');
+  const [onset, setOnset] = useState('');
+  const [severity, setSeverity] = useState('Mild');
+  const [tried, setTried] = useState('');
   const [step, setStep] = useState(0);
 
+  const provider = [...CARE_TEAM, FIRST_AVAIL].find(p => p.id === providerId) || null;
+  const vtype = typeKey ? VISIT_TYPES[typeKey] : null;
+  const availTypes = provider ? provider.types.filter(t => {
+    if (t === 'econsult') return F.econsult;
+    if (t === 'inperson') return F.inperson;
+    if (t.indexOf('video') === 0) return F.video;
+    if (!F.scheduling && VISIT_TYPES[t].slot) return false;
+    return true;
+  }) : [];
+  const nowTypes = availTypes.filter(t => VISIT_TYPES[t].group === 'now');
+  const laterTypes = availTypes.filter(t => VISIT_TYPES[t].group === 'later');
+  const asyncTypes = availTypes.filter(t => VISIT_TYPES[t].group === 'async');
+
+  const needsSlot = vtype && vtype.slot;
+  const needsPay = vtype && vtype.pay && F.payment;
+  const isEconsult = typeKey === 'econsult';
+  const isNow = vtype && vtype.now;
+
   const steps = (() => {
-    const s = ['when', 'method', 'provider', 'intake'];
-    if (method === 'econsult') s.push('econsult');
-    else if (when === 'later') s.push('schedule');
-    s.push('payment', 'review');
+    const s = ['provider', 'type'];
+    if (needsSlot) s.push('slot');
+    s.push('intake');
+    if (needsPay) s.push('payment');
+    s.push('review');
     return s;
   })();
   const idx = Math.min(step, steps.length - 1);
   const cur = steps[idx];
-  const isConnectNow = when === 'now' && (method === 'video' || method === 'phone');
-
-  const canNext = !(
-    (cur === 'when' && !when) ||
-    (cur === 'method' && !method) ||
-    (cur === 'provider' && !provider)
-  );
+  const canNext = !((cur === 'provider' && !providerId) || (cur === 'type' && !typeKey));
 
   const back = () => { if (idx > 0) setStep(idx - 1); else nav('/dashboard'); };
-  const next = () => {
-    if (!canNext) return;
-    if (idx < steps.length - 1) setStep(idx + 1);
-    else doConfirm();
-  };
+  const next = () => { if (!canNext) return; if (idx < steps.length - 1) setStep(idx + 1); else doConfirm(); };
+  const pickProvider = (id) => { setProviderId(id); setTypeKey(null); };
+
   const doConfirm = () => {
-    if (isConnectNow) { toast('Connecting you with the next available provider…'); nav('/telemedicine/call'); return; }
-    if (method === 'econsult') {
-      setStore(s => ({ ...s, confirm: { title: 'E-consult submitted', detail: `${SP_METHOD_LABEL.econsult} · ${SP_PROVIDER_LABEL[provider]}`, note: "Your care team usually responds within 24–48 hours. You'll be notified and it will appear in your Visits list. Not for urgent symptoms.", primaryLabel: 'View in visits', primaryTo: '/visits' } }));
+    if (isNow) { toast('Connecting you with ' + provider.name + '…'); nav('/telemedicine/call'); return; }
+    if (isEconsult) {
+      const id = 'ec' + Math.random().toString(36).slice(2, 6);
+      const newEc = {
+        id, when: 'Just now', time: '', kind: 'E-consult — ' + (reason || 'New concern'), provider: provider.name, specialty: provider.specialty,
+        mode: 'E-consult', async: true, status: 'Open', expected: 'within 24–48 hours', tense: 'upcoming', encounter: 'ENC-' + Math.floor(4500 + Math.random() * 400),
+        reason: reason || 'New concern', description: reason || 'New concern', assigned: provider.name,
+        intake: [{ q: 'Main concern', a: reason || '—' }, { q: 'When did it start?', a: onset || '—' }, { q: 'Severity', a: severity }, { q: 'What have you tried?', a: tried || '—' }],
+        response: null, diagnosis: null, plan: null,
+        messages: [{ from: 'patient', name: store.user.name, date: 'Just now', body: reason || 'New concern' }],
+        timeline: [
+          { label: 'Submitted', date: 'Just now', state: 'done' },
+          { label: 'Assigned to care team', date: 'Just now', state: 'done' },
+          { label: 'Under review', date: '—', state: 'active' },
+          { label: 'Provider responded', date: '—', state: 'pending' },
+          { label: 'Closed', date: '—', state: 'pending' },
+        ],
+      };
+      setStore(s => ({ ...s, visits: [newEc, ...s.visits], confirm: { title: 'E-consult submitted', detail: `${provider.name} · ${provider.specialty}`, note: "Your care team usually responds within 24–48 hours. You'll be notified and it appears in Visits. For urgent symptoms, call emergency services or contact your clinic directly.", primaryLabel: 'View e-consult', primaryTo: '/visits/' + id } }));
     } else {
-      setStore(s => ({ ...s, confirm: { title: 'Appointment scheduled', detail: `${SP_METHOD_LABEL[method]} · Jun 14, ${slot} PM · ${SP_PROVIDER_LABEL[provider]}`, note: 'A reminder will be sent 24 hours before your visit. You can reschedule or cancel anytime from the visit details.', primaryLabel: 'View visit', primaryTo: '/visits/v2' } }));
+      setStore(s => ({ ...s, confirm: { title: 'Appointment scheduled', detail: `${vtype.label} · ${provider.name} · Jun 14, ${slot} PM`, note: 'A reminder will be sent 24 hours before your visit. You can reschedule or cancel anytime from the visit details.', primaryLabel: 'View visit', primaryTo: '/visits/v2' } }));
     }
     nav('/confirm');
   };
 
   const reviewRows = () => {
-    const rows = [['Visit type', SP_METHOD_LABEL[method] || '—'], ['Provider', SP_PROVIDER_LABEL[provider] || '—']];
-    if (method === 'econsult') rows.push(['Response', 'Expected in 24–48 hours']);
-    else if (when === 'later') { rows.push(['When', `Jun 14, 2026 · ${slot} PM`]); if (method === 'in-person') rows.push(['Location', 'Main Clinic, Austin']); }
+    const rows = [['Provider', `${provider.name} · ${provider.specialty}`], ['Visit type', vtype.label]];
+    if (isEconsult) rows.push(['Response', 'Expected within 24–48 hours']);
+    else if (needsSlot) rows.push(['When', `Jun 14, 2026 · ${slot} PM`]);
     else rows.push(['When', 'Now — connect immediately']);
     rows.push(['Reason', reason || 'Added in intake']);
-    rows.push(['Payment', method === 'econsult' ? '$0 — covered' : '$25.00 copay · Visa ···· 4242']);
+    rows.push(['Payment', needsPay ? '$25.00 copay · Visa ···· 4242' : isEconsult ? 'No payment required' : '$0 — covered']);
     return rows;
+  };
+
+  const TypeChoice = (t) => {
+    const vt = VISIT_TYPES[t];
+    return <ChoiceRow key={t} icon={vt.icon} title={vt.label} desc={vt.desc} tag={vt.tag} selected={typeKey === t} onClick={() => setTypeKey(t)} />;
   };
 
   return (
@@ -697,7 +803,7 @@ const SeeProviderScreen = () => {
       <div className="page-header" style={{ marginBottom: 14 }}>
         <div>
           <div className="page-title">See a provider</div>
-          <div className="page-subtitle">Step {idx + 1} of {steps.length}</div>
+          <div className="page-subtitle">Choose someone from your care team, then select an available care option. · Step {idx + 1} of {steps.length}</div>
         </div>
       </div>
 
@@ -709,39 +815,55 @@ const SeeProviderScreen = () => {
       </div>
 
       <div className="card">
-        {cur === 'when' && (
-          <div className="stack" style={{ gap: 10 }}>
-            <h3 className="card-title" style={{ marginBottom: 4 }}>When do you need care?</h3>
-            <ChoiceRow icon="zap" title="Now" desc="Connect with an available provider right away." selected={when === 'now'} onClick={() => setWhen('now')} />
-            <ChoiceRow icon="calendar" title="Later" desc="Schedule a day and time, or send an async e-consult." selected={when === 'later'} onClick={() => setWhen('later')} />
-          </div>
-        )}
-
-        {cur === 'method' && (
-          <div className="stack" style={{ gap: 10 }}>
-            <h3 className="card-title" style={{ marginBottom: 4 }}>Choose a visit type</h3>
-            <ChoiceRow icon="video" title="Video visit" desc="See your provider over secure video." selected={method === 'video'} onClick={() => setMethod('video')} />
-            <ChoiceRow icon="phone" title="Phone visit" desc="We'll call you at your number." selected={method === 'phone'} onClick={() => setMethod('phone')} />
-            <ChoiceRow icon="building" title="In-person visit" desc={when === 'now' ? 'Schedule for later — not available right now.' : 'At a clinic location near you.'} selected={method === 'in-person'} disabled={when === 'now'} onClick={() => setMethod('in-person')} />
-            <ChoiceRow icon="message" title="E-consult" tag="Async" desc="Send your concern now. Care team usually responds in 24–48 hours." selected={method === 'econsult'} onClick={() => setMethod('econsult')} />
-          </div>
-        )}
-
         {cur === 'provider' && (
           <div className="stack" style={{ gap: 10 }}>
-            <h3 className="card-title" style={{ marginBottom: 4 }}>Who would you like to see?</h3>
-            <ChoiceRow icon="zap" title="First available provider" desc="Fastest option — next open provider on our team." selected={provider === 'first'} onClick={() => setProvider('first')} />
-            <ChoiceRow icon="user" title="Dr. Emily Carter" desc="Your primary care provider." selected={provider === 'pcp'} onClick={() => setProvider('pcp')} />
-            <ChoiceRow icon="user" title="Dr. Raj Patel" desc="Endocrinology · last seen Feb 14." selected={provider === 'specific'} onClick={() => setProvider('specific')} />
+            <h3 className="card-title" style={{ marginBottom: 0 }}>Choose a provider</h3>
+            <div className="card-eyebrow">Your care team</div>
+            {CARE_TEAM.map(p => <ProviderRow key={p.id} p={p} selected={providerId === p.id} onClick={() => pickProvider(p.id)} />)}
+            <div className="card-eyebrow" style={{ marginTop: 8 }}>Other options</div>
+            <ProviderRow p={FIRST_AVAIL} selected={providerId === 'first'} onClick={() => pickProvider('first')} />
           </div>
         )}
 
-        {cur === 'intake' && (
+        {cur === 'type' && (
+          <div className="stack" style={{ gap: 10 }}>
+            <h3 className="card-title" style={{ marginBottom: 0 }}>How would you like to see {provider.name}?</h3>
+            {!provider.online && nowTypes.length === 0 && (
+              <div className="row gap-sm" style={{ alignItems: 'flex-start', background: 'var(--bg)', border: '1px solid var(--border)', padding: '12px 14px', borderRadius: 10, fontSize: 13 }}>
+                <Icon name="info" size={16} style={{ marginTop: 1, flexShrink: 0, color: 'var(--text-secondary)' }} />
+                <span>{provider.name} isn't available for a walk-in right now. You can schedule a visit or send an e-consult.</span>
+              </div>
+            )}
+            {nowTypes.length > 0 && <><div className="card-eyebrow">Available now</div>{nowTypes.map(TypeChoice)}</>}
+            {laterTypes.length > 0 && <><div className="card-eyebrow" style={{ marginTop: 8 }}>Schedule later</div>{laterTypes.map(TypeChoice)}</>}
+            {asyncTypes.length > 0 && <><div className="card-eyebrow" style={{ marginTop: 8 }}>Async option</div>{asyncTypes.map(TypeChoice)}</>}
+          </div>
+        )}
+
+        {cur === 'slot' && (
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 4 }}>Pick a time</h3>
+            <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>{provider.name} · {vtype.label}</p>
+            <div className="card-eyebrow" style={{ marginBottom: 10 }}>Available — Jun 14, 2026</div>
+            <div className="time-slot-grid">
+              {SP_SLOTS.map(t => (
+                <button key={t} className={`time-slot ${slot === t ? 'selected' : ''}`} disabled={SP_TAKEN.has(t)} onClick={() => setSlot(t)}>{t}</button>
+              ))}
+            </div>
+            {typeKey === 'inperson' && (
+              <div className="form-row" style={{ marginTop: 16, marginBottom: 0 }}>
+                <label>Location</label>
+                <select className="select"><option>Main Clinic — 901 Congress Ave, Austin</option><option>North Austin Office — 12500 N Lamar Blvd</option></select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {cur === 'intake' && !isEconsult && (
           <div>
             <h3 className="card-title" style={{ marginBottom: 14 }}>Tell us what's going on</h3>
             <div className="form-row"><label>Reason for visit</label><input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Diabetes follow-up, sore throat, rash" /></div>
             <div className="form-row"><label>Symptoms or concern</label><textarea className="textarea" placeholder="When did it start, what you've tried, anything else that helps." /></div>
-            <div className="form-row"><label>Any new medications or allergies?</label><input className="input" placeholder="Optional — list anything new since your last visit." /></div>
             <div className="form-row" style={{ marginBottom: 0 }}>
               <label>Attach files or photos (optional)</label>
               <div className="upload-zone"><Icon name="upload" /><div style={{ fontWeight: 600, color: 'var(--text)' }}>Click to attach</div><div style={{ fontSize: 12 }}>PDF, JPG, PNG</div></div>
@@ -749,35 +871,19 @@ const SeeProviderScreen = () => {
           </div>
         )}
 
-        {cur === 'schedule' && (
+        {cur === 'intake' && isEconsult && (
           <div>
-            <h3 className="card-title" style={{ marginBottom: 4 }}>Pick a time</h3>
-            <p className="muted" style={{ fontSize: 13.5, marginBottom: 16 }}>{SP_PROVIDER_LABEL[provider]} · {SP_METHOD_LABEL[method]}</p>
-            <div className="card-eyebrow" style={{ marginBottom: 10 }}>Available — Jun 14, 2026</div>
-            <div className="time-slot-grid">
-              {SP_SLOTS.map(t => (
-                <button key={t} className={`time-slot ${slot === t ? 'selected' : ''}`} disabled={SP_TAKEN.has(t)} onClick={() => setSlot(t)}>{t}</button>
-              ))}
+            <h3 className="card-title" style={{ marginBottom: 4 }}>Intake questionnaire</h3>
+            <p className="muted" style={{ fontSize: 13.5, marginBottom: 14 }}>Answer a few questions so {provider.name} can review without a live visit.</p>
+            <div className="form-row"><label>What's your main concern?</label><input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Itchy rash on left forearm" /></div>
+            <div className="form-row"><label>When did it start?</label><input className="input" value={onset} onChange={(e) => setOnset(e.target.value)} placeholder="e.g. 2 days ago" /></div>
+            <div className="form-row"><label>How severe is it?</label>
+              <select className="select" value={severity} onChange={(e) => setSeverity(e.target.value)}><option>Mild</option><option>Moderate</option><option>Severe</option></select>
             </div>
-            {method === 'in-person' && (
-              <div className="form-row" style={{ marginTop: 16, marginBottom: 0 }}>
-                <label>Location</label>
-                <select className="select"><option>Main Clinic — 901 Congress Ave, Austin</option><option>Northside Clinic — 12 Burnet Rd</option></select>
-              </div>
-            )}
-          </div>
-        )}
-
-        {cur === 'econsult' && (
-          <div className="stack" style={{ gap: 12 }}>
-            <h3 className="card-title">What to expect</h3>
-            <div className="card" style={{ background: 'var(--primary-100)', border: 'none' }}>
-              <strong style={{ display: 'block', marginBottom: 4 }}>Async review</strong>
-              <span className="muted" style={{ fontSize: 13.5 }}>Your care team usually responds within <strong>24–48 hours</strong>. You'll be notified when there's a reply, and it will appear in your Visits list.</span>
-            </div>
-            <div className="row gap-sm" style={{ alignItems: 'flex-start', background: 'var(--warning-light)', color: '#92400E', padding: '12px 14px', borderRadius: 10, fontSize: 13 }}>
-              <Icon name="alert" size={16} style={{ marginTop: 1, flexShrink: 0 }} />
-              <span>Not for urgent symptoms. For chest pain, trouble breathing, or other emergencies, call 911 or contact your clinic directly.</span>
+            <div className="form-row"><label>What have you tried so far?</label><textarea className="textarea" value={tried} onChange={(e) => setTried(e.target.value)} placeholder="Medications, home remedies, etc." /></div>
+            <div className="form-row" style={{ marginBottom: 0 }}>
+              <label>Upload files or photos (optional)</label>
+              <div className="upload-zone"><Icon name="upload" /><div style={{ fontWeight: 600, color: 'var(--text)' }}>Click to attach</div><div style={{ fontSize: 12 }}>A clear photo helps your provider</div></div>
             </div>
           </div>
         )}
@@ -786,7 +892,7 @@ const SeeProviderScreen = () => {
           <div>
             <h3 className="card-title" style={{ marginBottom: 14 }}>Payment</h3>
             <div className="stack" style={{ gap: 0 }}>
-              <div className="row-between" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}><span className="muted">Estimated copay</span><strong>{method === 'econsult' ? '$0 — covered' : '$25.00'}</strong></div>
+              <div className="row-between" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}><span className="muted">Estimated copay</span><strong>$25.00</strong></div>
               <div className="row-between" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}><span className="muted">Insurance</span><strong>BlueCross · verified</strong></div>
             </div>
             <div className="form-row" style={{ marginTop: 14 }}>
@@ -807,14 +913,20 @@ const SeeProviderScreen = () => {
                 </div>
               ))}
             </div>
+            {isEconsult && (
+              <div className="row gap-sm" style={{ alignItems: 'flex-start', background: 'var(--warning-light)', color: '#92400E', padding: '12px 14px', borderRadius: 10, fontSize: 12.5, marginTop: 14 }}>
+                <Icon name="alert" size={15} style={{ marginTop: 1, flexShrink: 0 }} />
+                <span>E-consults are not for emergencies. For urgent symptoms, call emergency services or contact your clinic directly.</span>
+              </div>
+            )}
           </div>
         )}
 
         <hr className="divider" />
         <div className="row-between">
           <Button variant="text" icon="arrowLeft" onClick={back}>{idx > 0 ? 'Back' : 'Cancel'}</Button>
-          <Button onClick={next} disabled={!canNext} iconRight={cur === 'review' ? null : 'arrowRight'} icon={cur === 'review' ? (isConnectNow ? 'video' : 'check') : null}>
-            {cur === 'review' ? (isConnectNow ? 'Connect now' : 'Confirm & submit') : 'Continue'}
+          <Button onClick={next} disabled={!canNext} iconRight={cur === 'review' ? null : 'arrowRight'} icon={cur === 'review' ? (isNow ? 'video' : isEconsult ? 'send' : 'check') : null}>
+            {cur === 'review' ? (isNow ? 'Connect now' : isEconsult ? 'Submit e-consult' : 'Confirm appointment') : 'Continue'}
           </Button>
         </div>
       </div>
@@ -844,149 +956,92 @@ const ConfirmScreen = () => {
     </div>
   );
 };
-
-// ----- Requests (non-visit work items) -----
-const RequestsScreen = () => {
+// ----- Refills (medication refill flow — replaces the removed Requests tab) -----
+const RefillsScreen = () => {
   const { nav } = useRouter();
-  const { store } = useStore();
-  const [tab, setTab] = useState('open');
-  const list = store.requests.filter(r => (tab === 'open' ? r.open : !r.open));
+  const { store, setStore } = useStore();
+  const toast = useToast();
+  const refills = store.refills;
+  const meds = store.medical.meds;
+
+  const requestRefill = (med) => {
+    const id = 'rf' + Math.random().toString(36).slice(2, 6);
+    setStore(s => ({
+      ...s,
+      refills: [{ id, med: med.name, dose: med.dose, status: 'In Review', requested: 'Just now', pharmacy: s.user.pharmacy, needsAction: false,
+        timeline: [{ label: 'Requested', when: 'Just now', state: 'done' }, { label: 'In review', when: 'Pharmacy Team', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] }, ...s.refills],
+    }));
+    toast(`Refill requested for ${med.name}`);
+  };
+  const confirmPickup = (rf) => {
+    setStore(s => ({ ...s, refills: s.refills.map(x => x.id === rf.id ? { ...x, status: 'In Review', needsAction: false, note: undefined,
+      timeline: [{ label: 'Requested', when: rf.requested, state: 'done' }, { label: 'Confirmed pharmacy', when: 'Just now', state: 'done' }, { label: 'In review', when: 'Pharmacy Team', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] } : x) }));
+    toast('Pharmacy confirmed — refill is being processed');
+  };
+
   return (
     <div className="content-narrow">
       <div className="page-header">
         <div>
-          <div className="page-title">Requests</div>
-          <div className="page-subtitle">Non-visit help — refills, documents, insurance, and admin questions. Usually handled within 24 hours.</div>
+          <div className="page-title">Refills</div>
+          <div className="page-subtitle">Request medication refills and track their status. Usually processed within 24 hours.</div>
         </div>
-        <Button icon="plus" onClick={() => nav('/requests/new')}>Send a request</Button>
       </div>
-      <div className="tabs">
-        <button className={`tab ${tab === 'open' ? 'active' : ''}`} onClick={() => setTab('open')}>Open ({store.requests.filter(r => r.open).length})</button>
-        <button className={`tab ${tab === 'resolved' ? 'active' : ''}`} onClick={() => setTab('resolved')}>Resolved ({store.requests.filter(r => !r.open).length})</button>
-      </div>
-      <div className="stack" style={{ gap: 12 }}>
-        {list.length === 0 ? (
-          <div className="card"><div className="empty-state"><div className="empty-state-icon"><Icon name="inbox" size={22} /></div><div style={{ fontWeight: 600, color: 'var(--text)' }}>No {tab} requests</div><div>Send a request for non-visit help.</div></div></div>
-        ) : list.map(r => (
-          <button key={r.id} className="card" onClick={() => nav(`/requests/${r.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--grey-300)', color: 'var(--text-secondary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="inbox" size={18} /></div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="row gap-sm" style={{ marginBottom: 4 }}><Badge>{r.type}</Badge><Badge>{r.status}</Badge></div>
-              <div style={{ fontWeight: 600 }}>{r.title}</div>
-              <div className="muted" style={{ fontSize: 12.5 }}>{r.updated}</div>
+
+      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Active refills</div>
+      <div className="stack" style={{ gap: 12, marginBottom: 28 }}>
+        {refills.length === 0 ? (
+          <div className="card"><div className="empty-state"><div className="empty-state-icon"><Icon name="pill" size={22} /></div><div style={{ fontWeight: 600, color: 'var(--text)' }}>No active refills</div><div>Request a refill from your medication list below.</div></div></div>
+        ) : refills.map(rf => (
+          <div key={rf.id} className="card">
+            <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--teal-light)', color: 'var(--teal)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="pill" size={18} /></div>
+              <div style={{ flex: 1 }}>
+                <div className="row-between">
+                  <div style={{ fontWeight: 700 }}>{rf.med} <span className="muted" style={{ fontWeight: 400 }}>{rf.dose}</span></div>
+                  <Badge>{rf.status}</Badge>
+                </div>
+                <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>Requested {rf.requested} · {rf.pharmacy}</div>
+                {rf.needsAction && rf.note && (
+                  <div className="row-between" style={{ background: 'var(--warning-light)', color: '#92400E', padding: '10px 12px', borderRadius: 8, marginTop: 10, gap: 12 }}>
+                    <span style={{ fontSize: 12.5 }}>{rf.note}</span>
+                    <Button size="sm" onClick={() => confirmPickup(rf)} style={{ flexShrink: 0 }}>Confirm pharmacy</Button>
+                  </div>
+                )}
+                <div className="timeline" style={{ marginTop: 12 }}>
+                  {rf.timeline.map((t, i) => (
+                    <div key={i} className="timeline-item">
+                      <div className={`timeline-dot ${t.state}`}>
+                        {t.state === 'done' && <Icon name="check" size={14} />}
+                        {t.state === 'active' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }}></span>}
+                      </div>
+                      <div className="timeline-content"><div className="timeline-title">{t.label}</div><div className="timeline-meta">{t.when}</div></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <Icon name="chevronRight" size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-          </button>
+          </div>
         ))}
       </div>
-    </div>
-  );
-};
 
-const REQ_TYPES = ['Medication refill', 'Medical or admin question', 'Lab or result follow-up', 'Document or form request', 'Insurance issue', 'Other'];
-const RequestNewScreen = () => {
-  const { nav } = useRouter();
-  const { setStore } = useStore();
-  const [type, setType] = useState(REQ_TYPES[0]);
-  const [subject, setSubject] = useState('');
-  const [details, setDetails] = useState('');
-  const submit = (e) => {
-    e.preventDefault();
-    setStore(s => ({ ...s, confirm: { title: 'Request submitted', detail: "We'll handle this and update you here.", note: 'Most requests are handled within 24 hours. You can track status in Requests.', primaryLabel: 'View requests', primaryTo: '/requests' } }));
-    nav('/confirm');
-  };
-  return (
-    <div className="content-narrow" style={{ maxWidth: 720 }}>
-      <button className="btn btn-text" onClick={() => nav('/requests')} style={{ marginBottom: 10, padding: '4px 8px' }}>
-        <Icon name="arrowLeft" size={14} /> Back
-      </button>
-      <div className="page-header">
-        <div>
-          <div className="page-title">Send a request</div>
-          <div className="page-subtitle">For non-visit help like refills, documents, or insurance. To talk to a provider about symptoms, <a href="#" onClick={(e) => { e.preventDefault(); nav('/see-provider'); }} style={{ fontWeight: 600 }}>see a provider</a> instead.</div>
-        </div>
-      </div>
-      <form onSubmit={submit}>
-        <div className="card">
-          <div className="form-row"><label>What do you need?</label>
-            <select className="select" value={type} onChange={(e) => setType(e.target.value)}>{REQ_TYPES.map(t => <option key={t}>{t}</option>)}</select>
-          </div>
-          <div className="form-row"><label>Subject</label><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A short summary, e.g. 'Refill Metformin 500mg'" required /></div>
-          <div className="form-row"><label>Details</label><textarea className="textarea" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Add anything that helps us handle this — pharmacy, dates, document type, etc." /></div>
-          <div className="form-row"><label>Attachments (optional)</label>
-            <div className="upload-zone"><Icon name="upload" /><div style={{ fontWeight: 600, color: 'var(--text)' }}>Click to attach files</div><div style={{ fontSize: 12 }}>PDF, JPG, PNG up to 25 MB each</div></div>
-          </div>
-          <div className="row gap-sm" style={{ alignItems: 'flex-start', background: 'var(--warning-light)', color: '#92400E', padding: '10px 14px', borderRadius: 10, fontSize: 12.5 }}>
-            <Icon name="alert" size={15} style={{ marginTop: 1, flexShrink: 0 }} />
-            <span>Requests are not for urgent or medical emergencies. If this is an emergency, call 911.</span>
-          </div>
-          <div className="row-between" style={{ marginTop: 14 }}>
-            <Button type="button" variant="ghost" onClick={() => nav('/requests')}>Cancel</Button>
-            <Button type="submit" icon="send" disabled={!subject.trim()}>Send request</Button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-};
-
-const RequestDetailScreen = ({ requestId }) => {
-  const { nav } = useRouter();
-  const { store } = useStore();
-  const r = store.requests.find(x => x.id === requestId) || store.requests[0];
-  if (!r) return <div>Request not found</div>;
-  return (
-    <div className="content-narrow" style={{ maxWidth: 980 }}>
-      <button className="btn btn-text" onClick={() => nav('/requests')} style={{ marginBottom: 10, padding: '4px 8px' }}>
-        <Icon name="arrowLeft" size={14} /> Back to requests
-      </button>
-      <div className="page-header" style={{ alignItems: 'flex-start' }}>
-        <div>
-          <div className="row gap-sm" style={{ marginBottom: 8 }}><Badge>{r.type}</Badge><Badge>{r.status}</Badge></div>
-          <div className="page-title">{r.title}</div>
-          <div className="page-subtitle">Submitted {r.created} · Handled by {r.handledBy}</div>
-        </div>
-      </div>
-      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: 20 }}>
-        <div className="stack" style={{ gap: 20 }}>
-          <Card title="Conversation">
-            <div className="stack" style={{ gap: 16 }}>
-              {r.thread.map((m, i) => (
-                <div key={i} className={`msg-bubble ${m.from === 'me' ? 'me' : ''}`}>
-                  <Avatar size="sm" initials={m.from === 'me' ? 'SJ' : m.name.split(' ').map(x => x[0]).slice(0, 2).join('')} color={m.from === 'me' ? null : 'linear-gradient(135deg, #196CD2, #1E40AF)'} />
-                  <div><div className="msg-bubble-body">{m.body}</div><div className="msg-bubble-meta">{m.name} · {m.date}</div></div>
-                </div>
-              ))}
+      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Your medications</div>
+      <div className="stack" style={{ gap: 12 }}>
+        {meds.map((m, i) => {
+          const pending = refills.some(r => r.med === m.name && r.status !== 'Ready for pickup');
+          return (
+            <div key={i} className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="pill" size={18} /></div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600 }}>{m.name} <span className="muted" style={{ fontWeight: 400 }}>{m.dose}</span></div>
+                <div className="muted" style={{ fontSize: 12.5 }}>{m.freq}</div>
+              </div>
+              <Button variant={pending ? 'ghost' : 'secondary'} size="sm" disabled={pending} onClick={() => requestRefill(m)}>
+                {pending ? 'Requested' : 'Request refill'}
+              </Button>
             </div>
-            <hr className="divider" />
-            <div className="row-between" style={{ background: 'var(--primary-100)', padding: '12px 14px', borderRadius: 10, gap: 14 }}>
-              <div><strong style={{ display: 'block', fontSize: 14 }}>Need more help?</strong><span className="muted" style={{ fontSize: 12.5 }}>Send another request for a non-visit question.</span></div>
-              <Button onClick={() => nav('/requests/new')} icon="plus" style={{ flexShrink: 0 }}>Send a request</Button>
-            </div>
-          </Card>
-        </div>
-        <div className="stack" style={{ gap: 20 }}>
-          <Card title="Status">
-            <div className="timeline">
-              {r.timeline.map((t, i) => (
-                <div key={i} className="timeline-item">
-                  <div className={`timeline-dot ${t.state}`}>
-                    {t.state === 'done' && <Icon name="check" size={14} />}
-                    {t.state === 'active' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }}></span>}
-                  </div>
-                  <div className="timeline-content"><div className="timeline-title">{t.label}</div><div className="timeline-meta">{t.when}</div></div>
-                </div>
-              ))}
-            </div>
-          </Card>
-          <Card title="Details">
-            <div className="stack" style={{ gap: 6, fontSize: 13.5 }}>
-              <div><span className="muted">Type:</span> {r.type}</div>
-              <div><span className="muted">Handled by:</span> {r.handledBy}</div>
-              <div><span className="muted">Submitted:</span> {r.created}</div>
-            </div>
-          </Card>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -994,6 +1049,5 @@ const RequestDetailScreen = ({ requestId }) => {
 
 export {
   VisitsScreen, VisitDetailScreen, TelemedCallScreen,
-  SeeProviderScreen, ConfirmScreen,
-  RequestsScreen, RequestNewScreen, RequestDetailScreen,
+  SeeProviderScreen, ConfirmScreen, RefillsScreen,
 };

@@ -76,6 +76,29 @@ const initialStore = {
   config: {
     allowPatientMessages: true,  // feature flag: can patients initiate messages/requests?
   },
+  // Clinic-configurable feature flags. When off: hidden from sidebar, dashboard, and flows.
+  features: {
+    messages: true,
+    refills: true,
+    forms: true,
+    rpm: true,        // remote patient monitoring readings
+    monitoring: true, // Monitoring page in sidebar
+    econsult: true,
+    payment: true,
+    scheduling: true,
+    video: true,
+    inperson: true,
+  },
+  // Medication refills (own small flow — Requests tab removed in v3).
+  refills: [
+    { id: 'rf1', med: 'Metformin', dose: '500mg tablet', status: 'Waiting for Patient', requested: 'May 26, 2026', pharmacy: 'CVS Pharmacy — 901 Congress Ave', needsAction: true,
+      note: 'Pharmacy needs you to confirm your pickup location before sending.',
+      timeline: [{ label: 'Requested', when: 'May 26, 9:02 AM', state: 'done' }, { label: 'Waiting for you', when: 'Confirm pharmacy', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] },
+    { id: 'rf2', med: 'Lisinopril', dose: '10mg tablet', status: 'In Review', requested: 'May 24, 2026', pharmacy: 'CVS Pharmacy — 901 Congress Ave', needsAction: false,
+      timeline: [{ label: 'Requested', when: 'May 24, 8:10 AM', state: 'done' }, { label: 'In review', when: 'Pharmacy Team', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] },
+    { id: 'rf3', med: 'Cetirizine', dose: '10mg tablet', status: 'Ready for pickup', requested: 'May 18, 2026', pharmacy: 'CVS Pharmacy — 901 Congress Ave', needsAction: false,
+      timeline: [{ label: 'Requested', when: 'May 18', state: 'done' }, { label: 'Sent to pharmacy', when: 'May 18 · Pharmacy Team', state: 'done' }, { label: 'Ready for pickup', when: 'May 19', state: 'done' }] },
+  ],
   forms: [
     { id: 'f1', name: 'Pre-Visit Intake Form', desc: 'Required for your upcoming visit with Dr. Carter', due: 'Due May 27, 2026', status: 'Not started', progress: 0 },
     { id: 'f2', name: 'PHQ-9 Mood Screening', desc: 'Annual mental health screening', due: 'Due Jun 5, 2026', status: 'Not started', progress: 0 },
@@ -148,10 +171,17 @@ const initialStore = {
   visits: [
     // ── Async e-consults are first-class encounters and live in the same list as visits.
     //    Submitting one auto-opens an encounter on the EMR side (shown as `encounter`).
-    { id: 'e1', when: 'May 23, 2026', time: '10:14 AM', kind: 'E-consult — Metformin side effects', provider: 'Lisa Ng, NP', specialty: 'Primary Care', mode: 'E-consult', async: true, status: 'Provider replied', tense: 'upcoming', encounter: 'ENC-4471',
+    { id: 'e1', when: 'May 23, 2026', time: '10:14 AM', kind: 'E-consult — Metformin side effects', provider: 'Lisa Ng, NP', specialty: 'Primary Care', mode: 'E-consult', async: true, status: 'Provider Responded', expected: 'within 24–48 hours', tense: 'upcoming', encounter: 'ENC-4471',
       reason: 'Medical question or symptom',
       description: "I've been feeling nauseous in the mornings after taking Metformin. Is this normal during the first weeks? Should I take it with food?",
       assigned: 'Lisa Ng, NP',
+      intake: [
+        { q: 'Main concern', a: 'Morning nausea after starting Metformin' },
+        { q: 'When did it start?', a: 'About 1 week ago' },
+        { q: 'Severity', a: 'Mild' },
+        { q: 'What have you tried?', a: 'Taking it with a small snack' },
+      ],
+      response: 'Mild nausea is common in the first 1–2 weeks. Take Metformin with a full meal and a glass of water. If it persists past two weeks, we can switch you to the extended-release form. No need to stop in the meantime.',
       diagnosis: null, plan: null,
       messages: [
         { from: 'patient', name: 'Sarah Johnson', date: 'May 23, 10:14 AM', body: "I've been feeling nauseous in the mornings after taking Metformin. Is this normal during the first weeks? Should I take it with food?" },
@@ -164,10 +194,18 @@ const initialStore = {
         { label: 'Resolved', date: '—', state: 'pending' },
       ],
     },
-    { id: 'e2', when: 'May 26, 2026', time: '9:02 AM', kind: 'E-consult — Lisinopril refill', provider: 'Care Team', specialty: 'Primary Care', mode: 'E-consult', async: true, status: 'In review', tense: 'upcoming', encounter: 'ENC-4488',
-      reason: 'Prescription refill',
-      description: 'Running low on Lisinopril 10mg. Can I get a 90-day refill sent to my preferred pharmacy (CVS — 901 Congress Ave)?',
-      assigned: 'Care Team',
+    { id: 'e2', when: 'May 26, 2026', time: '9:02 AM', kind: 'E-consult — New rash on forearm', provider: 'Dr. Anita Shah', specialty: 'Dermatology', mode: 'E-consult', async: true, status: 'In Review', expected: 'within 24–48 hours', tense: 'upcoming', encounter: 'ENC-4488',
+      reason: 'Skin concern',
+      description: 'A small itchy rash appeared on my left forearm two days ago. Not painful. Photo attached.',
+      assigned: 'Dr. Anita Shah',
+      intake: [
+        { q: 'Main concern', a: 'Itchy rash on left forearm' },
+        { q: 'When did it start?', a: '2 days ago' },
+        { q: 'Severity', a: 'Mild' },
+        { q: 'What have you tried?', a: 'Over-the-counter hydrocortisone once' },
+      ],
+      attachments: ['Forearm photo.jpg'],
+      response: null,
       diagnosis: null, plan: null,
       messages: [
         { from: 'patient', name: 'Sarah Johnson', date: 'May 26, 9:02 AM', body: 'Running low on Lisinopril 10mg. Can I get a 90-day refill sent to my preferred pharmacy (CVS — 901 Congress Ave)?' },
@@ -206,10 +244,17 @@ const initialStore = {
       meds: [{ name: 'Metformin', dose: '500mg', freq: 'Twice daily — new' }],
       attachments: ['Endocrinology Consult Note.pdf'],
     },
-    { id: 'e3', when: 'Apr 02, 2026', time: '8:40 AM', kind: 'E-consult — Glucose tracking question', provider: 'Dr. Raj Patel', specialty: 'Endocrinology', mode: 'E-consult', async: true, status: 'Resolved', tense: 'past', encounter: 'ENC-4109',
+    { id: 'e3', when: 'Apr 02, 2026', time: '8:40 AM', kind: 'E-consult — Glucose tracking question', provider: 'Dr. Raj Patel', specialty: 'Endocrinology', mode: 'E-consult', async: true, status: 'Closed', expected: 'within 24–48 hours', tense: 'past', encounter: 'ENC-4109',
       reason: 'Test or result follow-up',
       description: 'My fasting glucose has been around 110–120 most mornings. Is that where we want it, or should I adjust anything?',
       assigned: 'Dr. Raj Patel',
+      intake: [
+        { q: 'Main concern', a: 'Fasting glucose 110–120 in mornings' },
+        { q: 'When did it start?', a: 'Tracking for ~3 weeks' },
+        { q: 'Severity', a: 'Not bothersome' },
+        { q: 'What have you tried?', a: 'Logging readings each morning' },
+      ],
+      response: 'That range is good progress and in line with our target. Keep tracking and we will review the full trend at your next visit. No medication change needed for now.',
       diagnosis: null, plan: null,
       messages: [
         { from: 'patient', name: 'Sarah Johnson', date: 'Apr 2, 8:40 AM', body: 'My fasting glucose has been around 110–120 most mornings. Is that where we want it, or should I adjust anything?' },
@@ -305,10 +350,13 @@ const Badge = ({ status, children }) => {
     'Completed': 'gray',
     'Cancelled': 'gray',
     'Submitted': 'blue',
+    'Open': 'blue',
     'In Review': 'amber',
     'In review': 'amber',
     'Provider replied': 'orange',
+    'Provider Responded': 'orange',
     'Waiting for Patient': 'orange',
+    'Ready for pickup': 'green',
     'Resolved': 'green',
     'Closed': 'gray',
     'E-consult': 'teal',

@@ -8,27 +8,28 @@ import {
 import { LoginScreen, DashboardScreen } from './screens-1.jsx';
 import {
   VisitsScreen, VisitDetailScreen, TelemedCallScreen,
-  SeeProviderScreen, ConfirmScreen,
-  RequestsScreen, RequestNewScreen, RequestDetailScreen,
+  SeeProviderScreen, ConfirmScreen, RefillsScreen,
 } from './screens-2.jsx';
 import {
   MessagesScreen, FormsScreen, IntakeFormScreen,
-  MedicalRecordsScreen, ProfileScreen, SettingsScreen,
+  MedicalRecordsScreen, ProfileScreen, SettingsScreen, MonitoringScreen,
 } from './screens-3.jsx';
 
-// v3 sidebar: Dashboard / Care (Visits, Requests, Messages) / Records / Account
+// v3 IA: Dashboard / Care (Visits, Messages, Refills) / Health (Forms, Records, Monitoring) / Account
+// Requests removed; E-consult is a Visit type. Items hide when their feature flag is off.
 const NAV_GROUPS = [
   { label: null, items: [
     { to: '/dashboard', icon: 'home', label: 'Dashboard' },
   ]},
   { label: 'Care', items: [
     { to: '/visits', icon: 'calendar', label: 'Visits' },
-    { to: '/requests', icon: 'inbox', label: 'Requests' },
-    { to: '/messages', icon: 'message', label: 'Messages' },
+    { to: '/messages', icon: 'message', label: 'Messages', feature: 'messages' },
+    { to: '/refills', icon: 'pill', label: 'Refills', feature: 'refills' },
   ]},
-  { label: 'Records', items: [
-    { to: '/forms', icon: 'fileText', label: 'Forms & Documents' },
+  { label: 'Health', items: [
+    { to: '/forms', icon: 'fileText', label: 'Forms & Documents', feature: 'forms' },
     { to: '/medical-records', icon: 'records', label: 'Medical Records' },
+    { to: '/monitoring', icon: 'activity', label: 'Monitoring', feature: 'monitoring' },
   ]},
   { label: 'Account', items: [
     { to: '/profile', icon: 'user', label: 'Profile' },
@@ -39,8 +40,10 @@ const NAV_GROUPS = [
 const Sidebar = () => {
   const { path, nav } = useRouter();
   const { store } = useStore();
-  const openReqs = store.requests.filter(r => r.open).length;
+  const F = store.features;
+  const refillActions = store.refills.filter(r => r.needsAction).length;
   const unread = store.messages.filter(m => m.unread).length;
+  const showSeeProvider = F.scheduling || F.econsult;
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -51,20 +54,23 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <button className="btn btn-primary btn-block see-provider-btn" onClick={() => nav('/see-provider')} style={{ margin: '4px 0 14px' }}>
-        <Icon name="plus" size={16} /> See a provider
-      </button>
+      {showSeeProvider && (
+        <button className="btn btn-primary btn-block see-provider-btn" onClick={() => nav('/see-provider')} style={{ margin: '4px 0 14px' }}>
+          <Icon name="plus" size={16} /> See a provider
+        </button>
+      )}
 
-      {NAV_GROUPS.map((group, gi) => (
+      {NAV_GROUPS.map((group, gi) => {
+        const items = group.items.filter(n => !n.feature || F[n.feature]);
+        if (items.length === 0) return null;
+        return (
         <React.Fragment key={group.label || `g${gi}`}>
           {group.label && <div className="nav-section-label">{group.label}</div>}
-          {group.items.map(n => {
+          {items.map(n => {
             const badge = n.to === '/messages' ? (unread || null)
-              : n.to === '/requests' ? (openReqs || null) : null;
+              : n.to === '/refills' ? (refillActions || null) : null;
             const active = n.to === '/visits'
               ? (path.startsWith('/visits') || path.startsWith('/see-provider'))
-              : n.to === '/requests'
-              ? path.startsWith('/requests')
               : path.startsWith(n.to);
             return (
               <button key={n.to} className={`nav-item ${active ? 'active' : ''}`} onClick={() => nav(n.to)}>
@@ -75,7 +81,8 @@ const Sidebar = () => {
             );
           })}
         </React.Fragment>
-      ))}
+        );
+      })}
 
       <div className="sidebar-footer">
         <button className="sidebar-user" onClick={() => nav('/profile')}>
@@ -197,10 +204,8 @@ const match = (path) => {
   const v = path.match(/^\/visits\/([^/]+)$/);
   if (v) return { name: 'visit-detail', id: v[1] };
   if (path === '/telemedicine/call') return { name: 'telemed-call' };
-  if (path === '/requests') return { name: 'requests' };
-  if (path === '/requests/new') return { name: 'request-new' };
-  const r = path.match(/^\/requests\/([^/]+)$/);
-  if (r) return { name: 'request-detail', id: r[1] };
+  if (path === '/refills') return { name: 'refills' };
+  if (path === '/monitoring') return { name: 'monitoring' };
   if (path === '/messages') return { name: 'messages' };
   const m = path.match(/^\/messages\/([^/]+)$/);
   if (m) return { name: 'messages', id: m[1] };
@@ -219,9 +224,8 @@ const ROUTE_META = {
   visits: { title: 'Visits', chrome: true },
   'visit-detail': { title: 'Details', chrome: true },
   'telemed-call': { title: 'In visit', chrome: false, fullBleed: true },
-  requests: { title: 'Requests', chrome: true },
-  'request-new': { title: 'Send a request', chrome: true },
-  'request-detail': { title: 'Request', chrome: true },
+  refills: { title: 'Refills', chrome: true },
+  monitoring: { title: 'Monitoring', chrome: true },
   messages: { title: 'Messages', chrome: true },
   forms: { title: 'Forms & Documents', chrome: true },
   intake: { title: 'Intake Form', chrome: true },
@@ -242,9 +246,8 @@ const Outlet = () => {
     case 'visits': return <VisitsScreen />;
     case 'visit-detail': return <VisitDetailScreen visitId={route.id} />;
     case 'telemed-call': return <TelemedCallScreen />;
-    case 'requests': return <RequestsScreen />;
-    case 'request-new': return <RequestNewScreen />;
-    case 'request-detail': return <RequestDetailScreen requestId={route.id} />;
+    case 'refills': return <RefillsScreen />;
+    case 'monitoring': return <MonitoringScreen />;
     case 'messages': return <MessagesScreen activeId={route.id} />;
     case 'forms': return <FormsScreen />;
     case 'intake': return <IntakeFormScreen />;
