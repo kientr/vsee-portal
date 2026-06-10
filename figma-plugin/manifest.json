@@ -1,0 +1,8 @@
+{
+  "name": "VSee Patient Portal — V2 Pages",
+  "id": "vsee-portal-v2-pages",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"],
+  "networkAccess": { "allowedDomains": ["none"] }
+}
