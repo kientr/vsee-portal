@@ -886,10 +886,8 @@ const PERMISSIONS = [
 const FEATURE_LIST = [
   ['messages', 'Messages', 'Conversations and replies from your care team'],
   ['econsult', 'E-consult', 'Asynchronous visit type, reviewed within 24–48 hours'],
-  ['refills', 'Refills', 'Medication refill requests and tracking'],
   ['forms', 'Forms & Documents', 'Assigned forms and document uploads'],
-  ['rpm', 'Monitoring / RPM', 'Remote patient monitoring readings'],
-  ['monitoring', 'Monitoring page', 'Show the Monitoring page in the sidebar'],
+  ['rpm', 'Monitoring widget (RPM)', 'Optional remote-monitoring card on the dashboard'],
   ['scheduling', 'Scheduling', 'Book scheduled video, phone, and in-person visits'],
   ['video', 'Video visits', 'Allow video visit types'],
   ['inperson', 'In-person visits', 'Allow in-person visit types'],
@@ -982,45 +980,8 @@ const SettingsScreen = () => {
   );
 };
 
-// ----- Monitoring / RPM -----
-const MonitoringScreen = () => {
-  const { store } = useStore();
-  const toast = useToast();
-  const rpm = store.medical.rpm;
-  return (
-    <div className="content-narrow">
-      <div className="page-header">
-        <div>
-          <div className="page-title">Monitoring</div>
-          <div className="page-subtitle">Remote patient monitoring readings shared with your care team. Updated automatically.</div>
-        </div>
-        <Button variant="secondary" icon="upload" onClick={() => toast('Connect a device — coming soon')}>Add a reading</Button>
-      </div>
-      <div className="grid grid-2" style={{ gap: 16, marginBottom: 24 }}>
-        {rpm.map((r, i) => (
-          <div key={i} className="card" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-              <Icon name={r.label === 'Blood pressure' ? 'heart' : r.label === 'Heart rate' ? 'activity' : r.label === 'Weight' ? 'scale' : 'droplet'} size={20} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>{r.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.1 }}>{r.value}</div>
-              <div className="muted" style={{ fontSize: 12 }}>{r.sub}</div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => toast('Trend view — coming soon')}>View trends</Button>
-          </div>
-        ))}
-      </div>
-      <Card title="About monitoring">
-        <div className="muted" style={{ fontSize: 13.5 }}>
-          Readings from your connected devices are shared securely with your care team between visits. If a reading is out of range, your provider may reach out or you'll see a task in <strong>Needs your attention</strong>.
-        </div>
-      </Card>
-    </div>
-  );
-};
 
 export {
   MessagesScreen, FormsScreen, IntakeFormScreen,
-  MedicalRecordsScreen, ProfileScreen, SettingsScreen, MonitoringScreen,
+  MedicalRecordsScreen, ProfileScreen, SettingsScreen,
 };

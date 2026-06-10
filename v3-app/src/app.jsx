@@ -8,28 +8,29 @@ import {
 import { LoginScreen, DashboardScreen } from './screens-1.jsx';
 import {
   VisitsScreen, VisitDetailScreen, TelemedCallScreen,
-  SeeProviderScreen, ConfirmScreen, RefillsScreen,
+  SeeProviderScreen, ConfirmScreen,
+  RequestsScreen, RequestNewScreen, RequestDetailScreen,
 } from './screens-2.jsx';
 import {
   MessagesScreen, FormsScreen, IntakeFormScreen,
-  MedicalRecordsScreen, ProfileScreen, SettingsScreen, MonitoringScreen,
+  MedicalRecordsScreen, ProfileScreen, SettingsScreen,
 } from './screens-3.jsx';
 
-// v3 IA: Dashboard / Care (Visits, Messages, Refills) / Health (Forms, Records, Monitoring) / Account
-// Requests removed; E-consult is a Visit type. Items hide when their feature flag is off.
+// v3 IA: Dashboard / Care (Visits, Requests, Messages) / Health (Forms, Records) / Account
+// Visits, Requests, and Messages are distinct concepts. E-consult is a Visit type.
+// Monitoring/RPM is an optional dashboard widget, never a sidebar tab.
 const NAV_GROUPS = [
   { label: null, items: [
     { to: '/dashboard', icon: 'home', label: 'Dashboard' },
   ]},
   { label: 'Care', items: [
     { to: '/visits', icon: 'calendar', label: 'Visits' },
+    { to: '/requests', icon: 'inbox', label: 'Requests' },
     { to: '/messages', icon: 'message', label: 'Messages', feature: 'messages' },
-    { to: '/refills', icon: 'pill', label: 'Refills', feature: 'refills' },
   ]},
   { label: 'Health', items: [
     { to: '/forms', icon: 'fileText', label: 'Forms & Documents', feature: 'forms' },
     { to: '/medical-records', icon: 'records', label: 'Medical Records' },
-    { to: '/monitoring', icon: 'activity', label: 'Monitoring', feature: 'monitoring' },
   ]},
   { label: 'Account', items: [
     { to: '/profile', icon: 'user', label: 'Profile' },
@@ -41,7 +42,7 @@ const Sidebar = () => {
   const { path, nav } = useRouter();
   const { store } = useStore();
   const F = store.features;
-  const refillActions = store.refills.filter(r => r.needsAction).length;
+  const openReqs = store.requests.filter(r => r.open).length;
   const unread = store.messages.filter(m => m.unread).length;
   const showSeeProvider = F.scheduling || F.econsult;
   return (
@@ -68,7 +69,7 @@ const Sidebar = () => {
           {group.label && <div className="nav-section-label">{group.label}</div>}
           {items.map(n => {
             const badge = n.to === '/messages' ? (unread || null)
-              : n.to === '/refills' ? (refillActions || null) : null;
+              : n.to === '/requests' ? (openReqs || null) : null;
             const active = n.to === '/visits'
               ? (path.startsWith('/visits') || path.startsWith('/see-provider'))
               : path.startsWith(n.to);
@@ -204,8 +205,10 @@ const match = (path) => {
   const v = path.match(/^\/visits\/([^/]+)$/);
   if (v) return { name: 'visit-detail', id: v[1] };
   if (path === '/telemedicine/call') return { name: 'telemed-call' };
-  if (path === '/refills') return { name: 'refills' };
-  if (path === '/monitoring') return { name: 'monitoring' };
+  if (path === '/requests') return { name: 'requests' };
+  if (path === '/requests/new') return { name: 'request-new' };
+  const rq = path.match(/^\/requests\/([^/]+)$/);
+  if (rq) return { name: 'request-detail', id: rq[1] };
   if (path === '/messages') return { name: 'messages' };
   const m = path.match(/^\/messages\/([^/]+)$/);
   if (m) return { name: 'messages', id: m[1] };
@@ -224,8 +227,9 @@ const ROUTE_META = {
   visits: { title: 'Visits', chrome: true },
   'visit-detail': { title: 'Details', chrome: true },
   'telemed-call': { title: 'In visit', chrome: false, fullBleed: true },
-  refills: { title: 'Refills', chrome: true },
-  monitoring: { title: 'Monitoring', chrome: true },
+  requests: { title: 'Requests', chrome: true },
+  'request-new': { title: 'New request', chrome: true },
+  'request-detail': { title: 'Request', chrome: true },
   messages: { title: 'Messages', chrome: true },
   forms: { title: 'Forms & Documents', chrome: true },
   intake: { title: 'Intake Form', chrome: true },
@@ -246,8 +250,9 @@ const Outlet = () => {
     case 'visits': return <VisitsScreen />;
     case 'visit-detail': return <VisitDetailScreen visitId={route.id} />;
     case 'telemed-call': return <TelemedCallScreen />;
-    case 'refills': return <RefillsScreen />;
-    case 'monitoring': return <MonitoringScreen />;
+    case 'requests': return <RequestsScreen />;
+    case 'request-new': return <RequestNewScreen />;
+    case 'request-detail': return <RequestDetailScreen requestId={route.id} />;
     case 'messages': return <MessagesScreen activeId={route.id} />;
     case 'forms': return <FormsScreen />;
     case 'intake': return <IntakeFormScreen />;

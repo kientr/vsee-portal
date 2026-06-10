@@ -956,92 +956,149 @@ const ConfirmScreen = () => {
     </div>
   );
 };
-// ----- Refills (medication refill flow — replaces the removed Requests tab) -----
-const RefillsScreen = () => {
+
+// ----- Requests (non-visit support / admin needs; refill is one request type) -----
+const RequestsScreen = () => {
   const { nav } = useRouter();
-  const { store, setStore } = useStore();
-  const toast = useToast();
-  const refills = store.refills;
-  const meds = store.medical.meds;
-
-  const requestRefill = (med) => {
-    const id = 'rf' + Math.random().toString(36).slice(2, 6);
-    setStore(s => ({
-      ...s,
-      refills: [{ id, med: med.name, dose: med.dose, status: 'In Review', requested: 'Just now', pharmacy: s.user.pharmacy, needsAction: false,
-        timeline: [{ label: 'Requested', when: 'Just now', state: 'done' }, { label: 'In review', when: 'Pharmacy Team', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] }, ...s.refills],
-    }));
-    toast(`Refill requested for ${med.name}`);
-  };
-  const confirmPickup = (rf) => {
-    setStore(s => ({ ...s, refills: s.refills.map(x => x.id === rf.id ? { ...x, status: 'In Review', needsAction: false, note: undefined,
-      timeline: [{ label: 'Requested', when: rf.requested, state: 'done' }, { label: 'Confirmed pharmacy', when: 'Just now', state: 'done' }, { label: 'In review', when: 'Pharmacy Team', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] } : x) }));
-    toast('Pharmacy confirmed — refill is being processed');
-  };
-
+  const { store } = useStore();
+  const [tab, setTab] = useState('open');
+  const list = store.requests.filter(r => (tab === 'open' ? r.open : !r.open));
   return (
     <div className="content-narrow">
       <div className="page-header">
         <div>
-          <div className="page-title">Refills</div>
-          <div className="page-subtitle">Request medication refills and track their status. Usually processed within 24 hours.</div>
+          <div className="page-title">Requests</div>
+          <div className="page-subtitle">Non-visit help — refills, documents, insurance, and admin questions. Usually handled within 24 hours.</div>
         </div>
+        <Button icon="plus" onClick={() => nav('/requests/new')}>New request</Button>
       </div>
-
-      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Active refills</div>
-      <div className="stack" style={{ gap: 12, marginBottom: 28 }}>
-        {refills.length === 0 ? (
-          <div className="card"><div className="empty-state"><div className="empty-state-icon"><Icon name="pill" size={22} /></div><div style={{ fontWeight: 600, color: 'var(--text)' }}>No active refills</div><div>Request a refill from your medication list below.</div></div></div>
-        ) : refills.map(rf => (
-          <div key={rf.id} className="card">
-            <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--teal-light)', color: 'var(--teal)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="pill" size={18} /></div>
-              <div style={{ flex: 1 }}>
-                <div className="row-between">
-                  <div style={{ fontWeight: 700 }}>{rf.med} <span className="muted" style={{ fontWeight: 400 }}>{rf.dose}</span></div>
-                  <Badge>{rf.status}</Badge>
-                </div>
-                <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>Requested {rf.requested} · {rf.pharmacy}</div>
-                {rf.needsAction && rf.note && (
-                  <div className="row-between" style={{ background: 'var(--warning-light)', color: '#92400E', padding: '10px 12px', borderRadius: 8, marginTop: 10, gap: 12 }}>
-                    <span style={{ fontSize: 12.5 }}>{rf.note}</span>
-                    <Button size="sm" onClick={() => confirmPickup(rf)} style={{ flexShrink: 0 }}>Confirm pharmacy</Button>
-                  </div>
-                )}
-                <div className="timeline" style={{ marginTop: 12 }}>
-                  {rf.timeline.map((t, i) => (
-                    <div key={i} className="timeline-item">
-                      <div className={`timeline-dot ${t.state}`}>
-                        {t.state === 'done' && <Icon name="check" size={14} />}
-                        {t.state === 'active' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }}></span>}
-                      </div>
-                      <div className="timeline-content"><div className="timeline-title">{t.label}</div><div className="timeline-meta">{t.when}</div></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+      <div className="tabs">
+        <button className={`tab ${tab === 'open' ? 'active' : ''}`} onClick={() => setTab('open')}>Open ({store.requests.filter(r => r.open).length})</button>
+        <button className={`tab ${tab === 'resolved' ? 'active' : ''}`} onClick={() => setTab('resolved')}>Resolved ({store.requests.filter(r => !r.open).length})</button>
+      </div>
+      <div className="stack" style={{ gap: 12 }}>
+        {list.length === 0 ? (
+          <div className="card"><div className="empty-state"><div className="empty-state-icon"><Icon name="inbox" size={22} /></div><div style={{ fontWeight: 600, color: 'var(--text)' }}>No {tab} requests</div><div>Send a request for non-visit help.</div></div></div>
+        ) : list.map(r => (
+          <button key={r.id} className="card" onClick={() => nav(`/requests/${r.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--grey-300)', color: 'var(--text-secondary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="inbox" size={18} /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="row gap-sm" style={{ marginBottom: 4 }}><Badge>{r.type}</Badge><Badge>{r.status}</Badge></div>
+              <div style={{ fontWeight: 600 }}>{r.title}</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>{r.updated}</div>
             </div>
-          </div>
+            <Icon name="chevronRight" size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          </button>
         ))}
       </div>
+    </div>
+  );
+};
 
-      <div className="card-eyebrow" style={{ marginBottom: 10 }}>Your medications</div>
-      <div className="stack" style={{ gap: 12 }}>
-        {meds.map((m, i) => {
-          const pending = refills.some(r => r.med === m.name && r.status !== 'Ready for pickup');
-          return (
-            <div key={i} className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="pill" size={18} /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{m.name} <span className="muted" style={{ fontWeight: 400 }}>{m.dose}</span></div>
-                <div className="muted" style={{ fontSize: 12.5 }}>{m.freq}</div>
-              </div>
-              <Button variant={pending ? 'ghost' : 'secondary'} size="sm" disabled={pending} onClick={() => requestRefill(m)}>
-                {pending ? 'Requested' : 'Request refill'}
-              </Button>
+const REQ_TYPES = ['Medication refill', 'Medical or admin question', 'Lab or result follow-up', 'Document or form request', 'Insurance issue', 'Other'];
+const RequestNewScreen = () => {
+  const { nav } = useRouter();
+  const { setStore } = useStore();
+  const [type, setType] = useState(REQ_TYPES[0]);
+  const [subject, setSubject] = useState('');
+  const [details, setDetails] = useState('');
+  const submit = (e) => {
+    e.preventDefault();
+    setStore(s => ({ ...s, confirm: { title: 'Request submitted', detail: "We'll handle this and update you here.", note: 'Most requests are handled within 24 hours. You can track status in Requests.', primaryLabel: 'View requests', primaryTo: '/requests' } }));
+    nav('/confirm');
+  };
+  return (
+    <div className="content-narrow" style={{ maxWidth: 720 }}>
+      <button className="btn btn-text" onClick={() => nav('/requests')} style={{ marginBottom: 10, padding: '4px 8px' }}>
+        <Icon name="arrowLeft" size={14} /> Back
+      </button>
+      <div className="page-header">
+        <div>
+          <div className="page-title">New request</div>
+          <div className="page-subtitle">For non-visit help like refills, documents, or insurance. To talk to a provider about symptoms, <a href="#" onClick={(e) => { e.preventDefault(); nav('/see-provider'); }} style={{ fontWeight: 600 }}>see a provider</a> instead.</div>
+        </div>
+      </div>
+      <form onSubmit={submit}>
+        <div className="card">
+          <div className="form-row"><label>What do you need?</label>
+            <select className="select" value={type} onChange={(e) => setType(e.target.value)}>{REQ_TYPES.map(t => <option key={t}>{t}</option>)}</select>
+          </div>
+          <div className="form-row"><label>Subject</label><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A short summary, e.g. 'Refill Metformin 500mg'" required /></div>
+          <div className="form-row"><label>Details</label><textarea className="textarea" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Add anything that helps us handle this — pharmacy, dates, document type, etc." /></div>
+          <div className="form-row"><label>Attachments (optional)</label>
+            <div className="upload-zone"><Icon name="upload" /><div style={{ fontWeight: 600, color: 'var(--text)' }}>Click to attach files</div><div style={{ fontSize: 12 }}>PDF, JPG, PNG up to 25 MB each</div></div>
+          </div>
+          <div className="row gap-sm" style={{ alignItems: 'flex-start', background: 'var(--warning-light)', color: '#92400E', padding: '10px 14px', borderRadius: 10, fontSize: 12.5 }}>
+            <Icon name="alert" size={15} style={{ marginTop: 1, flexShrink: 0 }} />
+            <span>Requests are not for urgent or medical emergencies. If this is an emergency, call 911.</span>
+          </div>
+          <div className="row-between" style={{ marginTop: 14 }}>
+            <Button type="button" variant="ghost" onClick={() => nav('/requests')}>Cancel</Button>
+            <Button type="submit" icon="send" disabled={!subject.trim()}>Send request</Button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const RequestDetailScreen = ({ requestId }) => {
+  const { nav } = useRouter();
+  const { store } = useStore();
+  const r = store.requests.find(x => x.id === requestId) || store.requests[0];
+  if (!r) return <div>Request not found</div>;
+  return (
+    <div className="content-narrow" style={{ maxWidth: 980 }}>
+      <button className="btn btn-text" onClick={() => nav('/requests')} style={{ marginBottom: 10, padding: '4px 8px' }}>
+        <Icon name="arrowLeft" size={14} /> Back to requests
+      </button>
+      <div className="page-header" style={{ alignItems: 'flex-start' }}>
+        <div>
+          <div className="row gap-sm" style={{ marginBottom: 8 }}><Badge>{r.type}</Badge><Badge>{r.status}</Badge></div>
+          <div className="page-title">{r.title}</div>
+          <div className="page-subtitle">Submitted {r.created} · Handled by {r.handledBy}</div>
+        </div>
+      </div>
+      <div className="split-grid">
+        <div className="stack" style={{ gap: 20 }}>
+          <Card title="Conversation">
+            <div className="stack" style={{ gap: 16 }}>
+              {r.thread.map((m, i) => (
+                <div key={i} className={`msg-bubble ${m.from === 'me' ? 'me' : ''}`}>
+                  <Avatar size="sm" initials={m.from === 'me' ? 'SJ' : m.name.split(' ').map(x => x[0]).slice(0, 2).join('')} color={m.from === 'me' ? null : 'linear-gradient(135deg, #196CD2, #1E40AF)'} />
+                  <div><div className="msg-bubble-body">{m.body}</div><div className="msg-bubble-meta">{m.name} · {m.date}</div></div>
+                </div>
+              ))}
             </div>
-          );
-        })}
+            <hr className="divider" />
+            <div className="row-between" style={{ background: 'var(--primary-100)', padding: '12px 14px', borderRadius: 10, gap: 14 }}>
+              <div><strong style={{ display: 'block', fontSize: 14 }}>Need more help?</strong><span className="muted" style={{ fontSize: 12.5 }}>Send another request for a non-visit question.</span></div>
+              <Button onClick={() => nav('/requests/new')} icon="plus" style={{ flexShrink: 0 }}>New request</Button>
+            </div>
+          </Card>
+        </div>
+        <div className="stack" style={{ gap: 20 }}>
+          <Card title="Status">
+            <div className="timeline">
+              {r.timeline.map((t, i) => (
+                <div key={i} className="timeline-item">
+                  <div className={`timeline-dot ${t.state}`}>
+                    {t.state === 'done' && <Icon name="check" size={14} />}
+                    {t.state === 'active' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }}></span>}
+                  </div>
+                  <div className="timeline-content"><div className="timeline-title">{t.label}</div><div className="timeline-meta">{t.when}</div></div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card title="Details">
+            <div className="stack" style={{ gap: 6, fontSize: 13.5 }}>
+              <div><span className="muted">Type:</span> {r.type}</div>
+              <div><span className="muted">Handled by:</span> {r.handledBy}</div>
+              <div><span className="muted">Submitted:</span> {r.created}</div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -1049,5 +1106,6 @@ const RefillsScreen = () => {
 
 export {
   VisitsScreen, VisitDetailScreen, TelemedCallScreen,
-  SeeProviderScreen, ConfirmScreen, RefillsScreen,
+  SeeProviderScreen, ConfirmScreen,
+  RequestsScreen, RequestNewScreen, RequestDetailScreen,
 };

@@ -79,26 +79,14 @@ const initialStore = {
   // Clinic-configurable feature flags. When off: hidden from sidebar, dashboard, and flows.
   features: {
     messages: true,
-    refills: true,
     forms: true,
-    rpm: true,        // remote patient monitoring readings
-    monitoring: true, // Monitoring page in sidebar
+    rpm: true,        // optional dashboard Monitoring widget (RPM) — not a sidebar tab
     econsult: true,
     payment: true,
     scheduling: true,
     video: true,
     inperson: true,
   },
-  // Medication refills (own small flow — Requests tab removed in v3).
-  refills: [
-    { id: 'rf1', med: 'Metformin', dose: '500mg tablet', status: 'Waiting for Patient', requested: 'May 26, 2026', pharmacy: 'CVS Pharmacy — 901 Congress Ave', needsAction: true,
-      note: 'Pharmacy needs you to confirm your pickup location before sending.',
-      timeline: [{ label: 'Requested', when: 'May 26, 9:02 AM', state: 'done' }, { label: 'Waiting for you', when: 'Confirm pharmacy', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] },
-    { id: 'rf2', med: 'Lisinopril', dose: '10mg tablet', status: 'In Review', requested: 'May 24, 2026', pharmacy: 'CVS Pharmacy — 901 Congress Ave', needsAction: false,
-      timeline: [{ label: 'Requested', when: 'May 24, 8:10 AM', state: 'done' }, { label: 'In review', when: 'Pharmacy Team', state: 'active' }, { label: 'Ready for pickup', when: '—', state: 'pending' }] },
-    { id: 'rf3', med: 'Cetirizine', dose: '10mg tablet', status: 'Ready for pickup', requested: 'May 18, 2026', pharmacy: 'CVS Pharmacy — 901 Congress Ave', needsAction: false,
-      timeline: [{ label: 'Requested', when: 'May 18', state: 'done' }, { label: 'Sent to pharmacy', when: 'May 18 · Pharmacy Team', state: 'done' }, { label: 'Ready for pickup', when: 'May 19', state: 'done' }] },
-  ],
   forms: [
     { id: 'f1', name: 'Pre-Visit Intake Form', desc: 'Required for your upcoming visit with Dr. Carter', due: 'Due May 27, 2026', status: 'Not started', progress: 0 },
     { id: 'f2', name: 'PHQ-9 Mood Screening', desc: 'Annual mental health screening', due: 'Due Jun 5, 2026', status: 'Not started', progress: 0 },
