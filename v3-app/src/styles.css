@@ -1146,3 +1146,85 @@ p { margin: 0; }
 .picker-option:hover { border-color: var(--primary); background: var(--primary-100); box-shadow: 0 1px 4px rgba(13,135,92,0.08); }
 .picker-option-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; }
 .picker-option-title { font-weight: 700; font-size: 15px; color: var(--text); }
+
+/* ───────────────────────────────────────────────
+   Responsive layers (v3 redesign §7 — mobile)
+   ─────────────────────────────────────────────── */
+.split-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 20px; align-items: start; }
+.records-grid { display: grid; grid-template-columns: 220px 1fr; gap: 22px; }
+
+/* Mobile bottom nav + slide-up menu (hidden on desktop) */
+.mobile-nav { display: none; }
+.mobile-menu-scrim { display: none; }
+
+@media (max-width: 1024px) {
+  .split-grid { grid-template-columns: 1fr; }
+  .records-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { height: 100vh; }
+  .content { padding: 16px 14px 88px; }
+  .topbar { padding: 0 14px; gap: 10px; }
+  .topbar-search { margin-left: 0; max-width: none; }
+  .page-header { flex-wrap: wrap; align-items: flex-start; }
+  .page-title { font-size: 22px; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-dashboard { grid-template-columns: 1fr; }
+  .msg-shell { grid-template-columns: 1fr; }
+  .msg-list { max-height: 220px; }
+
+  /* Bottom navigation */
+  .mobile-nav {
+    display: flex;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    height: 64px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 12px rgba(17, 24, 39, 0.05);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .mobile-nav button {
+    flex: 1; border: none; background: transparent; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    color: var(--text-muted); font-size: 10.5px; font-weight: 600;
+    padding: 8px 0;
+  }
+  .mobile-nav button.active { color: var(--primary); }
+  .mobile-nav button .mn-badge {
+    position: absolute; top: 6px; margin-left: 18px;
+    background: var(--danger); color: #fff; font-size: 9px; font-weight: 700;
+    min-width: 15px; height: 15px; border-radius: 999px; display: grid; place-items: center; padding: 0 3px;
+  }
+
+  /* Slide-up "More" sheet */
+  .mobile-menu-scrim {
+    display: block; position: fixed; inset: 0; z-index: 60;
+    background: rgba(17, 24, 39, 0.45);
+    animation: fadeIn .15s ease;
+  }
+  .mobile-menu {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--surface);
+    border-radius: 16px 16px 0 0;
+    padding: 8px 14px calc(18px + env(safe-area-inset-bottom, 0));
+    max-height: 80vh; overflow-y: auto;
+    animation: sheetUp .2s ease;
+  }
+  .mobile-menu-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border-strong); margin: 8px auto 12px; }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes sheetUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+
+  /* Sticky wizard footer for step flows (§7.3) */
+  .sp-footer {
+    position: sticky; bottom: 0;
+    margin: 14px -20px -20px; padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 12px rgba(17, 24, 39, 0.04);
+  }
+  .sp-footer .btn { flex: 1; }
+}

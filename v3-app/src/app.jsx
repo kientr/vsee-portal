@@ -258,11 +258,81 @@ const Outlet = () => {
   }
 };
 
+// ----- Mobile navigation (§7.2) -----
+const MOBILE_TABS = [
+  { to: '/dashboard', icon: 'home', label: 'Home' },
+  { to: '/visits', icon: 'calendar', label: 'Visits' },
+  { to: '/messages', icon: 'message', label: 'Messages', feature: 'messages' },
+  { to: '/medical-records', icon: 'records', label: 'Records' },
+];
+const MobileNav = ({ onMore }) => {
+  const { path, nav } = useRouter();
+  const { store } = useStore();
+  const tabs = MOBILE_TABS.filter(t => !t.feature || store.features[t.feature]);
+  const unread = store.messages.filter(m => m.unread).length;
+  return (
+    <nav className="mobile-nav">
+      {tabs.map(t => {
+        const active = t.to === '/visits' ? (path.startsWith('/visits') || path.startsWith('/see-provider')) : path.startsWith(t.to);
+        return (
+          <button key={t.to} className={active ? 'active' : ''} onClick={() => nav(t.to)}>
+            <span style={{ position: 'relative' }}>
+              <Icon name={t.icon} size={20} />
+              {t.to === '/messages' && unread > 0 && <span className="mn-badge">{unread}</span>}
+            </span>
+            {t.label}
+          </button>
+        );
+      })}
+      <button onClick={onMore}><Icon name="menu" size={20} />More</button>
+    </nav>
+  );
+};
+
+const MobileMenu = ({ onClose }) => {
+  const { nav } = useRouter();
+  const { store } = useStore();
+  const F = store.features;
+  const go = (to) => { onClose(); nav(to); };
+  const showSeeProvider = F.scheduling || F.econsult;
+  return (
+    <div className="mobile-menu-scrim" onClick={onClose}>
+      <div className="mobile-menu" onClick={(e) => e.stopPropagation()}>
+        <div className="mobile-menu-grip" />
+        {showSeeProvider && (
+          <button className="btn btn-primary btn-block" onClick={() => go('/see-provider')} style={{ marginBottom: 12 }}>
+            <Icon name="plus" size={16} /> See a provider
+          </button>
+        )}
+        {NAV_GROUPS.map((group, gi) => {
+          const items = group.items.filter(n => !n.feature || F[n.feature]);
+          if (items.length === 0) return null;
+          return (
+            <React.Fragment key={group.label || `g${gi}`}>
+              {group.label && <div className="nav-section-label">{group.label}</div>}
+              {items.map(n => (
+                <button key={n.to} className="nav-item" onClick={() => go(n.to)}>
+                  <Icon name={n.icon} /> {n.label}
+                </button>
+              ))}
+            </React.Fragment>
+          );
+        })}
+        <hr className="divider" />
+        <button className="nav-item" onClick={() => go('/login')}><Icon name="logout" /> Sign out</button>
+      </div>
+    </div>
+  );
+};
+
 const Shell = () => {
   const { path } = useRouter();
   const route = match(path);
   const meta = ROUTE_META[route.name];
+  const [menuOpen, setMenuOpen] = useState(false);
   if (meta.fullBleed) return <Outlet />;
+  // Hide bottom nav during the focused scheduling flow (it has its own sticky [Back][Continue]).
+  const hideMobileNav = route.name === 'see-provider';
   return (
     <div className="app">
       <Sidebar />
@@ -272,6 +342,8 @@ const Shell = () => {
           <Outlet />
         </div>
       </div>
+      {!hideMobileNav && <MobileNav onMore={() => setMenuOpen(true)} />}
+      {menuOpen && <MobileMenu onClose={() => setMenuOpen(false)} />}
     </div>
   );
 };

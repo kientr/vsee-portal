@@ -491,7 +491,7 @@ const MedicalRecordsScreen = () => {
         <Button variant="secondary" icon="download">Download summary</Button>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '220px 1fr', gap: 22 }}>
+      <div className="records-grid">
         <div className="card" style={{ padding: 12, alignSelf: 'flex-start', position: 'sticky', top: 0 }}>
           <div className="records-nav">
             {RECORD_SECTIONS.map(s => (

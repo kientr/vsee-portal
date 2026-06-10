@@ -434,7 +434,7 @@ const DashboardScreen = () => {
           <div className="stack" style={{ gap: 12, marginBottom: 28 }}>
             {attn.map((a, i) => <AttnItem key={i} {...a} />)}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20, alignItems: 'start' }}>
+          <div className="split-grid">
             <div className="stack" style={{ gap: 24 }}>
               <UpcomingCare />
               {todos.length > 0 && <div><div style={{ height: 0 }} /><ToDoCard /></div>}
@@ -457,7 +457,7 @@ const DashboardScreen = () => {
             </div>
           </div>
           <div style={{ marginBottom: 24 }}><StartCareCard prominent={true} /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20, alignItems: 'start' }}>
+          <div className="split-grid">
             <UpcomingCare />
             <div className="stack" style={{ gap: 20 }}>
               {F.messages && <RecentMessages />}

@@ -164,7 +164,7 @@ const EConsultDetail = ({ v }) => {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+      <div className="split-grid">
         <div className="stack" style={{ gap: 20 }}>
           {/* Response-time commitment */}
           <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--primary-100)', border: 'none' }}>
@@ -300,7 +300,7 @@ const VisitDetailScreen = ({ visitId }) => {
         {isPast && <Button variant="secondary" icon="download">Download summary</Button>}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+      <div className="split-grid">
         <div className="stack" style={{ gap: 20 }}>
           {!isPast ? (
             <>
@@ -923,7 +923,7 @@ const SeeProviderScreen = () => {
         )}
 
         <hr className="divider" />
-        <div className="row-between">
+        <div className="row-between sp-footer">
           <Button variant="text" icon="arrowLeft" onClick={back}>{idx > 0 ? 'Back' : 'Cancel'}</Button>
           <Button onClick={next} disabled={!canNext} iconRight={cur === 'review' ? null : 'arrowRight'} icon={cur === 'review' ? (isNow ? 'video' : isEconsult ? 'send' : 'check') : null}>
             {cur === 'review' ? (isNow ? 'Connect now' : isEconsult ? 'Submit e-consult' : 'Confirm appointment') : 'Continue'}
