@@ -256,9 +256,11 @@ const AttnItem = ({ icon, color, title, meta, cta, onClick, primary }) => (
   </button>
 );
 
-const ApptRow = ({ v, onJoin, onView, canVideo }) => {
+// Consistent visit card: Date · Title · (Time · Visit type · Provider) · Status · action.
+// Join lives in the action center, so Upcoming care keeps a lighter "View details".
+const ApptRow = ({ v, onView }) => {
   const [mon, day] = v.when.split(',')[0].split(' ');
-  const ready = v.status === 'Ready to join' && v.mode === 'Virtual';
+  const ready = v.status === 'Ready to join';
   const method = v.mode === 'Virtual' ? 'Video visit' : v.mode === 'In-Person' ? 'In-person' : v.mode + ' visit';
   return (
     <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
@@ -268,15 +270,22 @@ const ApptRow = ({ v, onJoin, onView, canVideo }) => {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 14 }}>{v.kind}</div>
-        <div className="muted" style={{ fontSize: 12.5 }}>{v.provider} · {v.time} · {method}</div>
+        <div className="muted" style={{ fontSize: 12.5 }}>{v.time} · {method} · {v.provider}</div>
+        {ready && <div style={{ fontSize: 11.5, color: 'var(--primary)', marginTop: 2 }}>Join from “Needs your attention” above</div>}
       </div>
       <Badge>{v.status}</Badge>
-      {ready && canVideo
-        ? <Button size="sm" icon="video" onClick={onJoin}>Join</Button>
-        : <Button variant="secondary" size="sm" onClick={onView}>View</Button>}
+      <Button variant="secondary" size="sm" onClick={onView}>View details</Button>
     </div>
   );
 };
+
+const ActivityRow = ({ icon, color, title, meta, onClick, last }) => (
+  <button onClick={onClick} style={{ background: 'transparent', border: 'none', borderBottom: last ? 'none' : '1px solid var(--border)', textAlign: 'left', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0' }}>
+    <div style={{ width: 34, height: 34, borderRadius: 9, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name={icon} size={15} /></div>
+    <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5 }}>{title}</div><div className="muted" style={{ fontSize: 12 }}>{meta}</div></div>
+    <Icon name="chevronRight" size={15} style={{ color: 'var(--text-muted)' }} />
+  </button>
+);
 
 const DashboardScreen = () => {
   const { nav } = useRouter();
@@ -292,36 +301,26 @@ const DashboardScreen = () => {
   const intakeForm = pendingForms.find(f => f.id === 'f1');
   const openRequest = store.requests.find(r => r.open);
 
-  // Needs your attention — time-sensitive, most urgent first
+  // Action Center — every immediate action in one place, most urgent first.
   const attn = [];
-  if (readyVisit && F.video) attn.push({ icon: 'video', color: '#196CD2', title: 'Join your video visit', meta: `${readyVisit.provider} · ${readyVisit.when}, ${readyVisit.time}`, cta: 'Join visit', primary: true, onClick: () => nav('/telemedicine/call') });
-  if (intakeForm) attn.push({ icon: 'fileText', color: '#92400E', title: 'Complete pre-visit intake', meta: `Required before your May 28 visit · ${intakeForm.due}`, cta: 'Complete intake', onClick: () => nav('/forms/intake') });
-  if (repliedEconsult) attn.push({ icon: 'message', color: '#92400E', title: 'Review e-consult response', meta: `${repliedEconsult.assigned} replied about ${repliedEconsult.kind.replace('E-consult — ', '').toLowerCase()}`, cta: 'Review', onClick: () => nav('/visits/' + repliedEconsult.id) });
+  if (readyVisit && F.video) attn.push({ icon: 'video', color: '#196CD2', title: 'Join your video visit', meta: `Virtual Follow-up · ${readyVisit.provider} · today ${readyVisit.time}`, cta: 'Join video visit', primary: true, onClick: () => nav('/telemedicine/call') });
+  if (intakeForm) attn.push({ icon: 'fileText', color: '#92400E', title: 'Complete pre-visit intake', meta: `Required for your Virtual Follow-up · May 28, ${readyVisit ? readyVisit.time : '10:30 AM'}`, cta: 'Continue intake', onClick: () => nav('/forms/intake') });
+  if (repliedEconsult) attn.push({ icon: 'message', color: '#92400E', title: 'Review e-consult response', meta: `${repliedEconsult.assigned} responded · ${repliedEconsult.kind.replace('E-consult — ', '')}`, cta: 'Review response', onClick: () => nav('/visits/' + repliedEconsult.id) });
   if (unreadMsg) attn.push({ icon: 'mail', color: '#0D875C', title: `New message from ${unreadMsg.from}`, meta: unreadMsg.subject, cta: 'Read message', onClick: () => nav('/messages/' + unreadMsg.id) });
-
-  // To-Do list — dynamic, hides empty categories
-  const todos = [];
-  pendingForms.forEach(f => todos.push({ label: `Complete ${f.name}`, to: f.id === 'f1' ? '/forms/intake' : '/forms' }));
-  if (repliedEconsult) todos.push({ label: 'Review e-consult response', to: '/visits/' + repliedEconsult.id });
-  if (unreadMsg) todos.push({ label: 'Reply to your care team message', to: '/messages/' + unreadMsg.id });
-  if (openRequest) todos.push({ label: `Track request: ${openRequest.title}`, to: '/requests/' + openRequest.id });
-
-  const showMonitoring = F.rpm;
-  const bp = store.medical.rpm.find(r => r.label === 'Blood pressure');
 
   return (
     <div className="content-narrow">
       <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div>
           <div className="page-title">Good morning, {firstName}</div>
-          <div className="page-subtitle">Here's your care at a glance.</div>
+          <div className="page-subtitle">Here's what needs your attention today.</div>
         </div>
         <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)' }}></span> Updated just now
         </div>
       </div>
 
-      {/* Needs your attention — leads the dashboard. Shows a calm empty state when clear. */}
+      {/* 1 · Action Center — the single, prominent place for things to do now */}
       <div className="card-eyebrow" style={{ marginBottom: 10 }}>Needs your attention</div>
       {attn.length > 0 ? (
         <div className="grid grid-2" style={{ gap: 12, marginBottom: 28 }}>
@@ -338,84 +337,43 @@ const DashboardScreen = () => {
       )}
 
       <div className="split-grid">
-        <div className="stack" style={{ gap: 24 }}>
-          {/* Upcoming care */}
-          <div>
-            <div className="card-eyebrow" style={{ marginBottom: 10 }}>Upcoming care</div>
-            {upcoming.length === 0 ? (
-              <div className="card"><div className="empty-state" style={{ padding: '20px 0' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text)' }}>No upcoming visits</div>
-                <div>You can schedule care with your provider when needed.</div>
-                <Button variant="secondary" size="sm" icon="plus" style={{ marginTop: 10 }} onClick={() => nav('/see-provider')}>See a provider</Button>
-              </div></div>
-            ) : (
-              <div className="stack" style={{ gap: 10 }}>
-                {upcoming.map(v => <ApptRow key={v.id} v={v} canVideo={F.video} onJoin={() => nav('/telemedicine/call')} onView={() => nav('/visits/' + v.id)} />)}
-              </div>
-            )}
-          </div>
-
-          {/* To-do list */}
-          {todos.length > 0 && (
-            <Card title="To-do list">
-              <div className="stack" style={{ gap: 0 }}>
-                {todos.map((t, i) => (
-                  <button key={i} onClick={() => nav(t.to)} style={{ background: 'transparent', border: 'none', borderBottom: i < todos.length - 1 ? '1px solid var(--border)' : 'none', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', width: '100%' }}>
-                    <span style={{ width: 18, height: 18, borderRadius: 5, border: '1.5px solid var(--border-strong)', flexShrink: 0 }}></span>
-                    <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500 }}>{t.label}</span>
-                    <Icon name="chevronRight" size={15} style={{ color: 'var(--text-muted)' }} />
-                  </button>
-                ))}
-              </div>
-            </Card>
+        {/* 2 · Upcoming care — appointments only, lighter than the action center */}
+        <div>
+          <div className="card-eyebrow" style={{ marginBottom: 10 }}>Upcoming care</div>
+          {upcoming.length === 0 ? (
+            <div className="card"><div className="empty-state" style={{ padding: '20px 0' }}>
+              <div style={{ fontWeight: 600, color: 'var(--text)' }}>No upcoming visits</div>
+              <div>You can schedule care with your provider when needed.</div>
+            </div></div>
+          ) : (
+            <div className="stack" style={{ gap: 10 }}>
+              {upcoming.map(v => <ApptRow key={v.id} v={v} onView={() => nav('/visits/' + v.id)} />)}
+            </div>
           )}
         </div>
 
         <div className="stack" style={{ gap: 20 }}>
-          {/* Start care — compact secondary CTA */}
+          {/* 3 · Start care — one clear, compact CTA (method chosen inside the flow) */}
           <div className="card">
             <div className="card-eyebrow">Start care</div>
             <h3 className="card-title" style={{ marginBottom: 4 }}>See a provider</h3>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Choose from your care team, then an available option.</p>
-            <div className="stack" style={{ gap: 8 }}>
-              <Button icon="plus" block onClick={() => nav('/see-provider')}>See a provider</Button>
-              {F.econsult && <Button variant="secondary" icon="message" block onClick={() => nav('/see-provider')}>Send an e-consult</Button>}
-            </div>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Pick your provider, then choose video, phone, in-person, or e-consult.</p>
+            <Button icon="plus" block onClick={() => nav('/see-provider')}>See a provider</Button>
           </div>
 
-          {/* Recent messages */}
-          {F.messages && (
-            <Card title="Recent messages" action={<a href="#" onClick={(e) => { e.preventDefault(); nav('/messages'); }} style={{ fontSize: 13 }}>Inbox</a>}>
-              <div className="stack" style={{ gap: 0 }}>
-                {store.messages.slice(0, 3).map((m, i) => (
-                  <button key={m.id} onClick={() => nav('/messages/' + m.id)} style={{ background: 'transparent', border: 'none', borderBottom: i < 2 ? '1px solid var(--border)' : 'none', textAlign: 'left', padding: '10px 0', cursor: 'pointer', width: '100%', display: 'flex', gap: 10 }}>
-                    <Avatar initials={m.initials} size="sm" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="row-between"><span style={{ fontWeight: 600, fontSize: 13 }}>{m.unread && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', marginRight: 6 }}></span>}{m.from}</span><span className="muted" style={{ fontSize: 11.5 }}>{m.date}</span></div>
-                      <div className="muted" style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.subject}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Monitoring — optional dashboard widget (RPM), only when enabled */}
-          {showMonitoring && (
-            <Card title="Monitoring" action={<a href="#" onClick={(e) => { e.preventDefault(); nav('/medical-records'); }} style={{ fontSize: 13 }}>View trends</a>}>
-              <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--primary-light)', color: 'var(--primary-dark)', display: 'grid', placeItems: 'center' }}><Icon name="heart" size={18} /></div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>{bp ? bp.value : '124/78'} <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>mmHg</span></div>
-                  <div className="muted" style={{ fontSize: 12 }}>Latest blood pressure · {bp ? bp.sub.split('·')[1] : 'today'}</div>
-                </div>
-              </div>
-            </Card>
-          )}
+          {/* 4 · Recent activity — summaries, request updates, and messages in one feed */}
+          <Card title="Recent activity">
+            <div className="stack" style={{ gap: 0 }}>
+              <ActivityRow icon="fileText" color="#0D875C" title="Visit summary ready" meta="From your Apr 18 visit with Dr. Carter" onClick={() => nav('/visits/v3')} />
+              {openRequest && <ActivityRow icon="inbox" color="#6B7280" title="Request update" meta={`${openRequest.title} · in review`} onClick={() => nav('/requests/' + openRequest.id)} />}
+              {F.messages && <ActivityRow icon="mail" color="#196CD2" title="Message from Dr. Carter" meta="Your lab results are in" last onClick={() => nav('/messages/m1')} />}
+            </div>
+          </Card>
         </div>
       </div>
     </div>
   );
 };
+
 
 export { LoginScreen, DashboardScreen, UpcomingVisitCard };

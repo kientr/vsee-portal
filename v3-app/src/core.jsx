@@ -102,27 +102,25 @@ const initialStore = {
     { id: 'd3', name: 'Lab Results — Apr 2026.pdf', type: 'pdf', kind: 'Lab Result', date: 'Apr 22, 2026', status: 'Shared with care team' },
     { id: 'd4', name: 'Referral — Endocrinology.pdf', type: 'pdf', kind: 'Referral', date: 'Mar 15, 2026', status: 'Reviewed' },
   ],
-  // v3: Requests are NON-VISIT work items (refills, documents, insurance, admin).
+  // v3: Requests are NON-VISIT / admin support only (documents, insurance, account, admin).
   // Clinical asks about symptoms go through "See a provider" → E-consult (a visit type).
+  // No medication refills here — not in scope.
   confirm: null,
   requests: [
-    { id: 'rq1', type: 'Refill', title: 'Refill request — Metformin', status: 'Submitted', created: 'May 26, 2026', handledBy: 'Pharmacy Team', updated: 'Sent yesterday · usually handled within 24 hours', open: true,
+    { id: 'rq1', type: 'Document', title: 'Copy of visit record for work', status: 'Submitted', created: 'May 26, 2026', handledBy: 'Patient Services', updated: 'Sent yesterday · usually handled within 24 hours', open: true,
       thread: [
-        { from: 'me', name: 'Sarah Johnson', date: 'May 26, 9:02 AM', body: "I'm almost out of Metformin 500mg. Could I get a refill sent to my CVS on Congress Ave?" },
+        { from: 'me', name: 'Sarah Johnson', date: 'May 26, 9:02 AM', body: 'Could I get a copy of my Apr 18 visit record for my employer?' },
       ],
-      timeline: [{ label: 'Submitted', when: 'May 26, 9:02 AM', state: 'done' }, { label: 'In review', when: 'Pharmacy Team', state: 'active' }, { label: 'Resolved', when: '—', state: 'pending' }] },
-    { id: 'rq2', type: 'Refill', title: 'Refill request — Metformin', status: 'Resolved', created: 'May 23, 2026', handledBy: 'Pharmacy Team', updated: 'Pharmacy Team · resolved May 23', open: false,
-      thread: [
-        { from: 'me', name: 'Sarah Johnson', date: 'May 23, 10:14 AM', body: "I'm almost out of Metformin 500mg. Could I get a refill sent to my CVS on Congress Ave?" },
-        { from: 'them', name: 'Pharmacy Team', date: 'May 23, 1:32 PM', body: 'Your refill has been sent to CVS Pharmacy on Congress Ave and should be ready for pickup this afternoon.' },
-      ],
-      timeline: [{ label: 'Submitted', when: 'May 23, 10:14 AM', state: 'done' }, { label: 'Picked up', when: 'May 23, 11:02 AM · Pharmacy Team', state: 'done' }, { label: 'Resolved', when: 'May 23, 1:32 PM', state: 'done' }] },
-    { id: 'rq3', type: 'Insurance', title: 'Update insurance on file', status: 'Resolved', created: 'May 10, 2026', handledBy: 'Patient Services', updated: 'Patient Services · resolved May 12', open: false,
+      timeline: [{ label: 'Submitted', when: 'May 26, 9:02 AM', state: 'done' }, { label: 'In review', when: 'Patient Services', state: 'active' }, { label: 'Resolved', when: '—', state: 'pending' }] },
+    { id: 'rq2', type: 'Insurance', title: 'Update insurance on file', status: 'Resolved', created: 'May 10, 2026', handledBy: 'Patient Services', updated: 'Patient Services · resolved May 12', open: false,
       thread: [{ from: 'me', name: 'Sarah Johnson', date: 'May 10', body: 'I have a new BlueCross plan — can you update my insurance on file?' }, { from: 'them', name: 'Patient Services', date: 'May 12', body: 'Your new BlueCross plan is now on file. Member ID ending 8821.' }],
       timeline: [{ label: 'Submitted', when: 'May 10', state: 'done' }, { label: 'Resolved', when: 'May 12 · Patient Services', state: 'done' }] },
-    { id: 'rq4', type: 'Document', title: 'Request a visit record for work', status: 'Resolved', created: 'Apr 28, 2026', handledBy: 'Patient Services', updated: 'Patient Services · resolved Apr 30', open: false,
+    { id: 'rq3', type: 'Document', title: 'Request a visit record for work', status: 'Resolved', created: 'Apr 28, 2026', handledBy: 'Patient Services', updated: 'Patient Services · resolved Apr 30', open: false,
       thread: [{ from: 'me', name: 'Sarah Johnson', date: 'Apr 28', body: 'I need a record of my Apr 18 visit for my employer.' }, { from: 'them', name: 'Patient Services', date: 'Apr 30', body: "We've emailed your visit record. Let us know if you need anything else." }],
       timeline: [{ label: 'Submitted', when: 'Apr 28', state: 'done' }, { label: 'Resolved', when: 'Apr 30 · Patient Services', state: 'done' }] },
+    { id: 'rq4', type: 'Account', title: 'Update preferred phone number', status: 'Resolved', created: 'Apr 20, 2026', handledBy: 'Patient Services', updated: 'Patient Services · resolved Apr 21', open: false,
+      thread: [{ from: 'me', name: 'Sarah Johnson', date: 'Apr 20', body: 'Please update my preferred phone number to (555) 123-4567.' }, { from: 'them', name: 'Patient Services', date: 'Apr 21', body: 'Done — your contact number is updated.' }],
+      timeline: [{ label: 'Submitted', when: 'Apr 20', state: 'done' }, { label: 'Resolved', when: 'Apr 21 · Patient Services', state: 'done' }] },
   ],
   messages: [
     { id: 'm1', from: 'Dr. Emily Carter', initials: 'EC', subject: 'Your lab results are in',
@@ -196,7 +194,7 @@ const initialStore = {
       response: null,
       diagnosis: null, plan: null,
       messages: [
-        { from: 'patient', name: 'Sarah Johnson', date: 'May 26, 9:02 AM', body: 'Running low on Lisinopril 10mg. Can I get a 90-day refill sent to my preferred pharmacy (CVS — 901 Congress Ave)?' },
+        { from: 'patient', name: 'Sarah Johnson', date: 'May 26, 9:02 AM', body: 'A small itchy rash appeared on my left forearm two days ago. Not painful. Photo attached.' },
       ],
       timeline: [
         { label: 'Submitted', date: 'May 26, 9:02 AM', state: 'done' },

@@ -206,19 +206,24 @@ const EConsultDetail = ({ v }) => {
             </Card>
           )}
 
-          <Card title={v.response ? 'Provider response & activity' : 'Activity'}>
-            <div className="stack" style={{ gap: 16 }}>
-              {v.messages.map((m, i) => (
-                <div key={i} className={`msg-bubble ${m.from === 'patient' ? 'me' : ''}`}>
-                  <Avatar size="sm" initials={m.from === 'patient' ? 'SJ' : m.name.split(' ').map(x => x[0]).slice(0, 2).join('')}
-                    color={m.from === 'patient' ? null : 'linear-gradient(135deg, #196CD2, #1E40AF)'} />
-                  <div>
-                    <div className="msg-bubble-body">{m.body}</div>
-                    <div className="msg-bubble-meta">{m.name} · {m.date}</div>
-                  </div>
+          <Card title="Provider response">
+            {v.response ? (
+              <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+                <div className="row gap-sm" style={{ alignItems: 'center', marginBottom: 8 }}>
+                  <Avatar size="sm" initials={v.assigned.split(' ').map(x => x[0]).slice(0, 2).join('')} color="linear-gradient(135deg, #196CD2, #1E40AF)" />
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{v.assigned}</div>
+                  <span className="muted" style={{ fontSize: 12.5 }}>· responded</span>
                 </div>
-              ))}
-            </div>
+                <div style={{ fontSize: 14, lineHeight: 1.55 }}>{v.response}</div>
+                <div className="card-eyebrow" style={{ marginTop: 14 }}>Next steps</div>
+                <div style={{ fontSize: 13.5 }}>Continue your current plan. Reply with a follow-up below if symptoms change, or this e-consult will close automatically.</div>
+              </div>
+            ) : (
+              <div className="row gap-sm" style={{ alignItems: 'center', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                <Icon name="clock" size={16} />
+                <span style={{ fontSize: 13.5 }}>Awaiting provider response — expected within 24–48 hours.</span>
+              </div>
+            )}
             <hr className="divider" />
             {closed ? (
               <div className="row" style={{ gap: 10, alignItems: 'center', background: 'var(--green-light)', color: '#166534', padding: '12px 14px', borderRadius: 10 }}>
@@ -228,9 +233,8 @@ const EConsultDetail = ({ v }) => {
             ) : (
               <div className="stack" style={{ gap: 10 }}>
                 <div className="card-eyebrow">Add a follow-up</div>
-                <textarea className="textarea" placeholder="Reply to your care team…" value={reply} onChange={(e) => setReply(e.target.value)} />
-                <div className="row" style={{ justifyContent: 'space-between' }}>
-                  <Button variant="ghost" icon="paperclip">Attach file</Button>
+                <textarea className="textarea" placeholder="Add a note for your care team about this e-consult…" value={reply} onChange={(e) => setReply(e.target.value)} />
+                <div className="row" style={{ justifyContent: 'flex-end' }}>
                   <Button icon="send" onClick={sendReply} disabled={!reply.trim()}>Send follow-up</Button>
                 </div>
               </div>
@@ -957,7 +961,7 @@ const ConfirmScreen = () => {
   );
 };
 
-// ----- Requests (non-visit support / admin needs; refill is one request type) -----
+// ----- Requests (non-visit / admin support only — documents, insurance, account, admin) -----
 const RequestsScreen = () => {
   const { nav } = useRouter();
   const { store } = useStore();
@@ -968,7 +972,7 @@ const RequestsScreen = () => {
       <div className="page-header">
         <div>
           <div className="page-title">Requests</div>
-          <div className="page-subtitle">Non-visit help — refills, documents, insurance, and admin questions. Usually handled within 24 hours.</div>
+          <div className="page-subtitle">Non-visit support such as documents, insurance, account updates, or admin help. Usually handled within 24 hours.</div>
         </div>
         <Button icon="plus" onClick={() => nav('/requests/new')}>New request</Button>
       </div>
@@ -995,7 +999,7 @@ const RequestsScreen = () => {
   );
 };
 
-const REQ_TYPES = ['Medication refill', 'Medical or admin question', 'Lab or result follow-up', 'Document or form request', 'Insurance issue', 'Other'];
+const REQ_TYPES = ['Document or form request', 'Insurance question', 'Account or profile support', 'General admin support', 'Other'];
 const RequestNewScreen = () => {
   const { nav } = useRouter();
   const { setStore } = useStore();
@@ -1015,7 +1019,7 @@ const RequestNewScreen = () => {
       <div className="page-header">
         <div>
           <div className="page-title">New request</div>
-          <div className="page-subtitle">For non-visit help like refills, documents, or insurance. To talk to a provider about symptoms, <a href="#" onClick={(e) => { e.preventDefault(); nav('/see-provider'); }} style={{ fontWeight: 600 }}>see a provider</a> instead.</div>
+          <div className="page-subtitle">For non-visit support such as documents, insurance, account updates, or admin help. To talk to a provider about symptoms, <a href="#" onClick={(e) => { e.preventDefault(); nav('/see-provider'); }} style={{ fontWeight: 600 }}>see a provider</a> instead.</div>
         </div>
       </div>
       <form onSubmit={submit}>
@@ -1023,7 +1027,7 @@ const RequestNewScreen = () => {
           <div className="form-row"><label>What do you need?</label>
             <select className="select" value={type} onChange={(e) => setType(e.target.value)}>{REQ_TYPES.map(t => <option key={t}>{t}</option>)}</select>
           </div>
-          <div className="form-row"><label>Subject</label><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A short summary, e.g. 'Refill Metformin 500mg'" required /></div>
+          <div className="form-row"><label>Subject</label><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A short summary, e.g. 'Need a copy of my visit record'" required /></div>
           <div className="form-row"><label>Details</label><textarea className="textarea" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Add anything that helps us handle this — pharmacy, dates, document type, etc." /></div>
           <div className="form-row"><label>Attachments (optional)</label>
             <div className="upload-zone"><Icon name="upload" /><div style={{ fontWeight: 600, color: 'var(--text)' }}>Click to attach files</div><div style={{ fontSize: 12 }}>PDF, JPG, PNG up to 25 MB each</div></div>
