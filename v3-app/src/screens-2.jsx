@@ -29,7 +29,7 @@ const VisitCard = ({ v, onView, onJoin }) => {
         </div>
       </div>
       <div style={{ flex: 1 }}>
-        <h3 className="card-title">{v.kind}</h3>
+        <h3 className="card-title title-link" onClick={onView} title="View details">{v.kind}</h3>
         <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{v.provider} · {v.specialty}</div>
         <div className="row gap-sm muted" style={{ fontSize: 13, marginTop: 6 }}>
           {isAsync ? (

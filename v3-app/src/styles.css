@@ -1228,3 +1228,7 @@ p { margin: 0; }
   }
   .sp-footer .btn { flex: 1; }
 }
+
+/* Clickable list titles (Visits & e-consults, etc.) */
+.title-link { cursor: pointer; transition: color .12s; }
+.title-link:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
