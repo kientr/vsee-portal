@@ -296,7 +296,7 @@ const DashboardScreen = () => {
   const firstName = store.user.name.split(' ')[0];
 
   const readyVisit = store.visits.find(v => v.tense === 'upcoming' && v.status === 'Ready to join' && !v.async);
-  const upcoming = store.visits.filter(v => v.tense === 'upcoming' && !v.async).slice(0, 3);
+  const upcoming = store.visits.filter(v => v.tense === 'upcoming' && !v.async).slice(0, 4);
   const unreadMsg = F.messages ? store.messages.find(m => m.unread) : null;
   const repliedEconsult = F.econsult ? store.visits.find(v => v.async && v.status === 'Provider Responded') : null;
   const pendingForms = F.forms ? store.forms.filter(f => f.status !== 'Completed') : [];
