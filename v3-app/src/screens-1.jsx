@@ -315,8 +315,13 @@ const DashboardScreen = () => {
           <div className="page-title">Good morning, {firstName}</div>
           <div className="page-subtitle">Here's what needs your attention today.</div>
         </div>
-        <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)' }}></span> Updated just now
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+          <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)' }}></span> Updated just now
+          </div>
+          <span className="tip" data-tip="See a provider. Choose from your care team, then an available option.">
+            <Button icon="plus" onClick={() => nav('/see-provider')}>See a provider</Button>
+          </span>
         </div>
       </div>
 
@@ -353,15 +358,7 @@ const DashboardScreen = () => {
         </div>
 
         <div className="stack" style={{ gap: 20 }}>
-          {/* 3 · Start care — one clear, compact CTA (method chosen inside the flow) */}
-          <div className="card">
-            <div className="card-eyebrow">Start care</div>
-            <h3 className="card-title" style={{ marginBottom: 4 }}>See a provider</h3>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Pick your provider, then choose video, phone, in-person, or e-consult.</p>
-            <Button icon="plus" block onClick={() => nav('/see-provider')}>See a provider</Button>
-          </div>
-
-          {/* 4 · Recent activity — summaries, request updates, and messages in one feed */}
+          {/* Recent activity — summaries, request updates, and messages in one feed */}
           <Card title="Recent activity">
             <div className="stack" style={{ gap: 0 }}>
               <ActivityRow icon="fileText" color="#0D875C" title="Visit summary ready" meta="From your Apr 18 visit with Dr. Carter" onClick={() => nav('/visits/v3')} />
