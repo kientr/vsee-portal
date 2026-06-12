@@ -256,22 +256,19 @@ const AttnItem = ({ icon, color, title, meta, cta, onClick, primary }) => (
   </button>
 );
 
-// Consistent visit card: Date · Title · (Time · Visit type · Provider) · Status · action.
-// Join lives in the action center, so Upcoming care keeps a lighter "View details".
-const ApptRow = ({ v, onView }) => {
+// Table-style row inside a section card (divider between rows, status + CTA).
+const ApptRow = ({ v, onView, last }) => {
   const [mon, day] = v.when.split(',')[0].split(' ');
-  const ready = v.status === 'Ready to join';
   const method = v.mode === 'Virtual' ? 'Video visit' : v.mode === 'In-Person' ? 'In-person' : v.mode + ' visit';
   return (
-    <div className="card hover-stroke" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
-      <div style={{ width: 52, textAlign: 'center', flexShrink: 0, padding: '6px 0', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{mon}</div>
-        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1 }}>{day}</div>
+    <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 0', borderBottom: last ? 'none' : '1px solid var(--border)' }}>
+      <div style={{ width: 46, textAlign: 'center', flexShrink: 0, padding: '5px 0', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{mon}</div>
+        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.1 }}>{day}</div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 14 }}>{v.kind}</div>
         <div className="muted" style={{ fontSize: 12.5 }}>{v.time} · {method} · {v.provider}</div>
-        {ready && <div style={{ fontSize: 11.5, color: 'var(--primary)', marginTop: 2 }}>Join from “Needs your attention” above</div>}
       </div>
       <Badge>{v.status}</Badge>
       <Button variant="secondary" size="sm" onClick={onView}>View details</Button>
@@ -279,11 +276,10 @@ const ApptRow = ({ v, onView }) => {
   );
 };
 
-// Recent-activity item — same card-row style as Upcoming care, with a CTA.
-const ActivityRow = ({ icon, color, title, meta, cta, onClick }) => (
-  <div className="card hover-stroke" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
-    <div style={{ width: 48, height: 48, borderRadius: 10, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-      <Icon name={icon} size={19} />
+const ActivityRow = ({ icon, color, title, meta, cta, onClick, last }) => (
+  <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 0', borderBottom: last ? 'none' : '1px solid var(--border)' }}>
+    <div style={{ width: 42, height: 42, borderRadius: 10, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+      <Icon name={icon} size={18} />
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
@@ -313,6 +309,14 @@ const DashboardScreen = () => {
   if (intakeForm) attn.push({ icon: 'fileText', color: '#92400E', title: 'Complete pre-visit intake', meta: `Required for your Virtual Follow-up · May 28, ${readyVisit ? readyVisit.time : '10:30 AM'}`, cta: 'Continue intake', onClick: () => nav('/forms/intake') });
   if (repliedEconsult) attn.push({ icon: 'message', color: '#92400E', title: 'Review e-consult response', meta: `${repliedEconsult.assigned} responded · ${repliedEconsult.kind.replace('E-consult — ', '')}`, cta: 'Review response', onClick: () => nav('/visits/' + repliedEconsult.id) });
   if (unreadMsg) attn.push({ icon: 'mail', color: '#0D875C', title: `New message from ${unreadMsg.from}`, meta: unreadMsg.subject, cta: 'Read message', onClick: () => nav('/messages/' + unreadMsg.id) });
+
+  // Recent activity feed (table rows)
+  const activity = [
+    { icon: 'fileText', color: '#0D875C', title: 'Visit summary ready', meta: 'From your Apr 18 visit with Dr. Carter', cta: 'View summary', to: '/visits/v3' },
+    openRequest && { icon: 'inbox', color: '#6B7280', title: 'Request update', meta: `${openRequest.title} · in review`, cta: 'View request', to: '/requests/' + openRequest.id },
+    F.messages && { icon: 'mail', color: '#196CD2', title: 'Message from Dr. Carter', meta: 'Your lab results are in', cta: 'Read', to: '/messages/m1' },
+    { icon: 'droplet', color: '#196CD2', title: 'Lab results available', meta: 'A1C and lipid panel are now in your record', cta: 'View results', to: '/medical-records' },
+  ].filter(Boolean);
 
   return (
     <div className="content-narrow">
@@ -348,31 +352,22 @@ const DashboardScreen = () => {
       )}
 
       <div className="split-even">
-        {/* 2 · Upcoming care — appointments only, lighter than the action center */}
-        <div>
-          <div className="card-eyebrow" style={{ marginBottom: 10 }}>Upcoming care</div>
+        {/* Upcoming care — titled card, table rows divided by dividers */}
+        <Card title="Upcoming care">
           {upcoming.length === 0 ? (
-            <div className="card"><div className="empty-state" style={{ padding: '20px 0' }}>
+            <div className="empty-state" style={{ padding: '16px 0' }}>
               <div style={{ fontWeight: 600, color: 'var(--text)' }}>No upcoming visits</div>
               <div>You can schedule care with your provider when needed.</div>
-            </div></div>
-          ) : (
-            <div className="stack" style={{ gap: 10 }}>
-              {upcoming.map(v => <ApptRow key={v.id} v={v} onView={() => nav('/visits/' + v.id)} />)}
             </div>
+          ) : (
+            upcoming.map((v, i) => <ApptRow key={v.id} v={v} onView={() => nav('/visits/' + v.id)} last={i === upcoming.length - 1} />)
           )}
-        </div>
+        </Card>
 
-        <div>
-          {/* Recent activity — same list style as Upcoming care, each with a CTA */}
-          <div className="card-eyebrow" style={{ marginBottom: 10 }}>Recent activity</div>
-          <div className="stack" style={{ gap: 10 }}>
-            <ActivityRow icon="fileText" color="#0D875C" title="Visit summary ready" meta="From your Apr 18 visit with Dr. Carter" cta="View summary" onClick={() => nav('/visits/v3')} />
-            {openRequest && <ActivityRow icon="inbox" color="#6B7280" title="Request update" meta={`${openRequest.title} · in review`} cta="View request" onClick={() => nav('/requests/' + openRequest.id)} />}
-            {F.messages && <ActivityRow icon="mail" color="#196CD2" title="Message from Dr. Carter" meta="Your lab results are in" cta="Read" onClick={() => nav('/messages/m1')} />}
-            <ActivityRow icon="droplet" color="#196CD2" title="Lab results available" meta="A1C and lipid panel are now in your record" cta="View results" onClick={() => nav('/medical-records')} />
-          </div>
-        </div>
+        {/* Recent activity — titled card, table rows divided by dividers */}
+        <Card title="Recent activity">
+          {activity.map((a, i) => <ActivityRow key={i} {...a} onClick={() => nav(a.to)} last={i === activity.length - 1} />)}
+        </Card>
       </div>
     </div>
   );
