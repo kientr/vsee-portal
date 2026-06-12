@@ -959,14 +959,17 @@ p { margin: 0; }
   display: flex;
   gap: 12px;
   padding: 13px 18px;
+  border: 0;
   border-bottom: 1px solid var(--border);
-  cursor: pointer;
   border-left: 3px solid transparent;
+  cursor: pointer;
   background: transparent;
   width: 100%;
   text-align: left;
   font-family: inherit;
   font-size: 14px;
+  appearance: none;
+  -webkit-appearance: none;
 }
 .notif-row:hover { background: var(--grey-200); }
 .notif-row.unread { background: var(--primary-100); border-left-color: var(--primary); }
