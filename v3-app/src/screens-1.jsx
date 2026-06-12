@@ -347,7 +347,7 @@ const DashboardScreen = () => {
         </div>
       )}
 
-      <div className="split-grid">
+      <div className="split-even">
         {/* 2 · Upcoming care — appointments only, lighter than the action center */}
         <div>
           <div className="card-eyebrow" style={{ marginBottom: 10 }}>Upcoming care</div>
