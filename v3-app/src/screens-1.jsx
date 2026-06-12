@@ -281,7 +281,7 @@ const ApptRow = ({ v, onView }) => {
 
 // Recent-activity item — same card-row style as Upcoming care, with a CTA.
 const ActivityRow = ({ icon, color, title, meta, cta, onClick }) => (
-  <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
+  <div className="card hover-stroke" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
     <div style={{ width: 48, height: 48, borderRadius: 10, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
       <Icon name={icon} size={19} />
     </div>

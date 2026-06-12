@@ -1255,5 +1255,5 @@ p { margin: 0; }
 @media (max-width: 1024px) { .split-even { grid-template-columns: 1fr; } }
 
 /* Green hover stroke on interactive item cards */
-.card.hover-stroke { transition: border-color .12s ease, box-shadow .12s ease; }
-.card.hover-stroke:hover { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), var(--shadow); }
+.card.hover-stroke { transition: border-color .12s ease; }
+.card.hover-stroke:hover { border-color: var(--primary); }
