@@ -267,7 +267,7 @@ const ApptRow = ({ v, onView, last }) => {
         <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.1 }}>{day}</div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14 }}>{v.kind}</div>
+        <div className="title-link" style={{ fontWeight: 600, fontSize: 14, display: 'inline-block' }} onClick={onView} title="View details">{v.kind}</div>
         <div className="muted" style={{ fontSize: 12.5 }}>{v.time} · {method} · {v.provider}</div>
       </div>
       <Badge>{v.status}</Badge>
@@ -282,7 +282,7 @@ const ActivityRow = ({ icon, color, title, meta, cta, onClick, last }) => (
       <Icon name={icon} size={18} />
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
+      <div className="title-link" style={{ fontWeight: 600, fontSize: 14, display: 'inline-block' }} onClick={onClick} title={cta}>{title}</div>
       <div className="muted" style={{ fontSize: 12.5 }}>{meta}</div>
     </div>
     <Button variant="secondary" size="sm" onClick={onClick}>{cta}</Button>
