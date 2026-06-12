@@ -279,12 +279,18 @@ const ApptRow = ({ v, onView }) => {
   );
 };
 
-const ActivityRow = ({ icon, color, title, meta, onClick, last }) => (
-  <button onClick={onClick} style={{ background: 'transparent', border: 'none', borderBottom: last ? 'none' : '1px solid var(--border)', textAlign: 'left', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0' }}>
-    <div style={{ width: 34, height: 34, borderRadius: 9, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name={icon} size={15} /></div>
-    <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5 }}>{title}</div><div className="muted" style={{ fontSize: 12 }}>{meta}</div></div>
-    <Icon name="chevronRight" size={15} style={{ color: 'var(--text-muted)' }} />
-  </button>
+// Recent-activity item — same card-row style as Upcoming care, with a CTA.
+const ActivityRow = ({ icon, color, title, meta, cta, onClick }) => (
+  <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
+    <div style={{ width: 48, height: 48, borderRadius: 10, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+      <Icon name={icon} size={19} />
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
+      <div className="muted" style={{ fontSize: 12.5 }}>{meta}</div>
+    </div>
+    <Button variant="secondary" size="sm" onClick={onClick}>{cta}</Button>
+  </div>
 );
 
 const DashboardScreen = () => {
@@ -357,15 +363,14 @@ const DashboardScreen = () => {
           )}
         </div>
 
-        <div className="stack" style={{ gap: 20 }}>
-          {/* Recent activity — summaries, request updates, and messages in one feed */}
-          <Card title="Recent activity">
-            <div className="stack" style={{ gap: 0 }}>
-              <ActivityRow icon="fileText" color="#0D875C" title="Visit summary ready" meta="From your Apr 18 visit with Dr. Carter" onClick={() => nav('/visits/v3')} />
-              {openRequest && <ActivityRow icon="inbox" color="#6B7280" title="Request update" meta={`${openRequest.title} · in review`} onClick={() => nav('/requests/' + openRequest.id)} />}
-              {F.messages && <ActivityRow icon="mail" color="#196CD2" title="Message from Dr. Carter" meta="Your lab results are in" last onClick={() => nav('/messages/m1')} />}
-            </div>
-          </Card>
+        <div>
+          {/* Recent activity — same list style as Upcoming care, each with a CTA */}
+          <div className="card-eyebrow" style={{ marginBottom: 10 }}>Recent activity</div>
+          <div className="stack" style={{ gap: 10 }}>
+            <ActivityRow icon="fileText" color="#0D875C" title="Visit summary ready" meta="From your Apr 18 visit with Dr. Carter" cta="View summary" onClick={() => nav('/visits/v3')} />
+            {openRequest && <ActivityRow icon="inbox" color="#6B7280" title="Request update" meta={`${openRequest.title} · in review`} cta="View request" onClick={() => nav('/requests/' + openRequest.id)} />}
+            {F.messages && <ActivityRow icon="mail" color="#196CD2" title="Message from Dr. Carter" meta="Your lab results are in" cta="Read" onClick={() => nav('/messages/m1')} />}
+          </div>
         </div>
       </div>
     </div>
