@@ -300,7 +300,7 @@ const DashboardScreen = () => {
   const firstName = store.user.name.split(' ')[0];
 
   const readyVisit = store.visits.find(v => v.tense === 'upcoming' && v.status === 'Ready to join' && !v.async);
-  const upcoming = store.visits.filter(v => v.tense === 'upcoming' && !v.async);
+  const upcoming = store.visits.filter(v => v.tense === 'upcoming' && !v.async).slice(0, 5);
   const unreadMsg = F.messages ? store.messages.find(m => m.unread) : null;
   const repliedEconsult = F.econsult ? store.visits.find(v => v.async && v.status === 'Provider Responded') : null;
   const pendingForms = F.forms ? store.forms.filter(f => f.status !== 'Completed') : [];
@@ -370,6 +370,8 @@ const DashboardScreen = () => {
             <ActivityRow icon="fileText" color="#0D875C" title="Visit summary ready" meta="From your Apr 18 visit with Dr. Carter" cta="View summary" onClick={() => nav('/visits/v3')} />
             {openRequest && <ActivityRow icon="inbox" color="#6B7280" title="Request update" meta={`${openRequest.title} · in review`} cta="View request" onClick={() => nav('/requests/' + openRequest.id)} />}
             {F.messages && <ActivityRow icon="mail" color="#196CD2" title="Message from Dr. Carter" meta="Your lab results are in" cta="Read" onClick={() => nav('/messages/m1')} />}
+            <ActivityRow icon="droplet" color="#196CD2" title="Lab results available" meta="A1C and lipid panel are now in your record" cta="View results" onClick={() => nav('/medical-records')} />
+            <ActivityRow icon="fileText" color="#92400E" title="Visit summary — Endocrinology" meta="From your Feb 02 visit with Dr. Raj Patel" cta="View summary" onClick={() => nav('/visits/v4')} />
           </div>
         </div>
       </div>
