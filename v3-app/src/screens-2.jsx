@@ -8,7 +8,7 @@ import { UpcomingVisitCard } from './screens-1.jsx';
 const VisitCard = ({ v, onView, onJoin }) => {
   const isAsync = v.mode === 'E-consult';
   return (
-  <div className="card">
+  <div className="card hover-stroke">
     <div className="row-between" style={{ marginBottom: 14 }}>
       <div className="row gap-sm">
         <Badge>{v.mode}</Badge>
@@ -984,7 +984,7 @@ const RequestsScreen = () => {
         {list.length === 0 ? (
           <div className="card"><div className="empty-state"><div className="empty-state-icon"><Icon name="inbox" size={22} /></div><div style={{ fontWeight: 600, color: 'var(--text)' }}>No {tab} requests</div><div>Send a request for non-visit help.</div></div></div>
         ) : list.map(r => (
-          <button key={r.id} className="card" onClick={() => nav(`/requests/${r.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer' }}>
+          <button key={r.id} className="card hover-stroke" onClick={() => nav(`/requests/${r.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer' }}>
             <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--grey-300)', color: 'var(--text-secondary)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="inbox" size={18} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row gap-sm" style={{ marginBottom: 4 }}><Badge>{r.type}</Badge><Badge>{r.status}</Badge></div>

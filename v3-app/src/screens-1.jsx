@@ -242,7 +242,7 @@ const RecentMessagesCard = () => {
 };
 // ----- Dashboard (v3 patient action center) -----
 const AttnItem = ({ icon, color, title, meta, cta, onClick, primary }) => (
-  <button className="card" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer', width: '100%', borderLeft: `3px solid ${color}` }}>
+  <button className="card hover-stroke" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer', width: '100%', borderLeft: `3px solid ${color}` }}>
     <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}1A`, color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
       <Icon name={icon} size={18} />
     </div>
@@ -263,7 +263,7 @@ const ApptRow = ({ v, onView }) => {
   const ready = v.status === 'Ready to join';
   const method = v.mode === 'Virtual' ? 'Video visit' : v.mode === 'In-Person' ? 'In-person' : v.mode + ' visit';
   return (
-    <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
+    <div className="card hover-stroke" style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '14px 16px' }}>
       <div style={{ width: 52, textAlign: 'center', flexShrink: 0, padding: '6px 0', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
         <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{mon}</div>
         <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1 }}>{day}</div>
